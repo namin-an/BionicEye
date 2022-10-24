@@ -1,0 +1,4 @@
+# @package _group_
+name: REINFORCE
+
+gamma: 0.98

@@ -1,0 +1,5 @@
+# @package _group_
+name: AC
+
+gamma: 0.98
+batch_size: 16
