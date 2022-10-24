@@ -11,34 +11,25 @@ seed: 0
 
 # \ in Windows and / on Mac
 directory:
-  image_dir: data\sample_for_dev_test #data\sample_for_dev_test
+  image_dir: data\sample_for_dev_test # data\sample_for_dev_test2
   label_path: data\211105_QAs_for_Set0_CNN_SVC_4classes_partial.csv
   pred_dir: data\Human_Expert\211202
   data_path: data\210827_ANNA_Removing_uncontaminated_data.csv
   output_dir: outputs
 
-type:
-  stim_type: opt #elec
-  model_type: PPO
-
-top1: True
-
-class_num: 16
+data:
+  stim_type: opt # elec
+  top1: True
+  class_num: 16
 
 reinforcement:
-  discount: 0.99
-  learning_rate: 1e-5
+  gamma: 0.99
+  learning_rate: 0.0005
 
 training:
   episode_num: 300
-  batch_size: 32
-  print_interval: 10
-
-check_time_usage: True
-
-render: False
-
-evaluation:
-  average_window: 5
+  batch_size: 16
+  render: False
+  print_interval: 20
 
 save_info: True
