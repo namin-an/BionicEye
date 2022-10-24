@@ -18,6 +18,7 @@ def main(cfg: DictConfig):
     print(f"The original cwd: {orig_cwd}")
 
     # Configuration check
+    assert cfg.environment.name in ['HumBehTask', 'CartPole-v1'], "Invalid environment!"
     assert cfg.algorithm.name in ['PPO', 'REINFORCE', 'AC', 'DQN'], "Invalid algorithm!"
 
     # General setup
@@ -35,6 +36,7 @@ def main(cfg: DictConfig):
     class_num = cfg.class_num
 
     check_time_usage = cfg.check_time_usage
+    env_type = cfg.environment.name
     model_type = cfg.type.model_type
     episode_num = cfg.training.episode_num
     print_interval = cfg.training.print_interval
@@ -47,7 +49,7 @@ def main(cfg: DictConfig):
     print(f"Current cuda device: {torch.cuda.current_device()}")
 
     # Experiment
-    exp = Experiment(image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, device, check_time_usage, model_type, episode_num, print_interval, learning_rate, discount, average_window)
+    exp = Experiment(image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, check_time_usage, env_type, model_type, episode_num, print_interval, learning_rate, discount, average_window, device)
     model, train_returns, test_returns = exp.train()
 
     # Save the information
