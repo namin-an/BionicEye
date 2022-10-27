@@ -58,15 +58,16 @@ def main(cfg: DictConfig):
 
     # Perform experiment
     exp = Experiment(image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, argv)
-    model, train_returns, test_returns = exp.train()
+    model, train_returns, time_memory = exp.train()
 
     # Save the information
     if cfg.save_info:
         os.makedirs(f"{cfg.directory.output_dir}")
         torch.save(model.state_dict(), os.path.join(cfg.directory.output_dir, f'{env_type}_{model_type}.pth'))
         train_returns_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in train_returns.items()]))
-        test_returns_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in test_returns.items()]))
         train_returns_df.to_csv(os.path.join(cfg.directory.output_dir, f'TrainReturns_{env_type}_{model_type}.csv'))
-        test_returns_df.to_csv(os.path.join(cfg.directory.output_dir, f'TestReturns_{env_type}_{model_type}.csv'))
+        time_memory_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in time_memory.items()]))
+        time_memory_df.to_csv(os.path.join(cfg.directory.output_dir, f'TimeMemory_{env_type}_{model_type}.csv'))
+
 if __name__ == '__main__':
     main()
