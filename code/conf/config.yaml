@@ -1,5 +1,5 @@
 defaults:
-  - environment: CartPole-v1
+  - environment: Bioniceye
   - algorithm: PPO
 
 server:
@@ -33,3 +33,4 @@ training:
   print_interval: 20
 
 save_info: True
+

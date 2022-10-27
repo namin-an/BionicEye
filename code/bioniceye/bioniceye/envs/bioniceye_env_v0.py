@@ -66,23 +66,23 @@ class BionicEyeEnv_v0(Env):
 
       if (mach_pred == label) and (hum_pred == label):
         reward = 1
-        finetune = True
+        info = True
       elif (mach_pred != label) and (hum_pred != label):
-        reward = 1
-        finetune = False
+        reward = 0
+        info = False
       if (mach_pred == label) and (hum_pred != label):
         reward = -1
-        finetune = True
+        info = False
       elif (mach_pred != label) and (hum_pred == label):
         reward = -1
-        finetune = False
+        info = False
 
-      if t == self.trial_num - 1:
+      if info or t == self.trial_num - 1:
         done = True
       else:
         done = False
 
-      return np.expand_dims(obs, 0), reward, done, finetune
+      return np.expand_dims(obs, 0), reward, done, info
 
     def render(self, obs, mode='plt'):
       assert mode in ['cv', 'plt'], "Invalid mode, must be either cv or plt"
