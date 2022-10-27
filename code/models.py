@@ -54,14 +54,14 @@ class PPO(nn.Module):
                 ReLU(inplace=True), 
                 Linear(in_features=128, out_features=1, bias=True)).to(self.device)
         elif self.env_type == 'CartPole-v1':
-            self.fc1   = Linear(4,256)#.to(self.device)
-            self.fc_pi = Linear(256,2)#.to(self.device)
-            self.fc_v  = Linear(256,1)#.to(self.device)
+            self.fc1   = Linear(4,256).to(self.device)
+            self.fc_pi = Linear(256,2).to(self.device)
+            self.fc_v  = Linear(256,1).to(self.device)
         
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     def forward_pi(self, xb):
-        # xb = xb.to(self.device)
+        xb = xb.to(self.device)
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
 
@@ -76,7 +76,7 @@ class PPO(nn.Module):
         return out
     
     def forward_v(self, xb):
-        # xb = xb.to(self.device)
+        xb = xb.to(self.device)
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
 
@@ -97,66 +97,47 @@ class PPO(nn.Module):
         s_lst, a_lst, r_lst, s_prime_lst, prob_a_lst, done_lst = [], [], [], [], [], []
         
         for (i, transition) in tqdm(enumerate(self.data), leave=False):
-            s, a, r, s_prime, prob_a, done = transition
-            
-            s_lst.append(s)
+            s, a, r, s_prime, prob_a, done = transition          
+            s, s_prime = np.expand_dims(s, 0), np.expand_dims(s_prime, 0) # batch
+
+            if i == 0:
+                state = s
+                next_state = s_prime
+            else:
+                state = np.concatenate((state, s), axis=0)
+                next_state = np.concatenate((next_state, s_prime), axis=0)
+            state, next_state = torch.from_numpy(state), torch.from_numpy(next_state)
+
             a_lst.append([a])
             r_lst.append([r])
-            s_prime_lst.append(s_prime)
             prob_a_lst.append([prob_a])
             done_mask = 0 if done else 1
             done_lst.append([done_mask])
-
-            state, action, reward, next_state, prob_action, done_mask = torch.tensor(s_lst, dtype=torch.float), \
+            action, reward, prob_action, done_mask = \
             torch.tensor(a_lst), \
                 torch.tensor(r_lst), \
-                    torch.tensor(s_prime_lst, dtype=torch.float), \
                         torch.tensor(prob_a_lst), \
-                            torch.tensor(done_lst, dtype=torch.float)
+                            torch.tensor(done_lst, dtype=torch.float)       
+
         self.data = []
         return state, action, reward, next_state, prob_action, done_mask
 
-    # def train_net(self):
-    #     full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask = self.concatenate_data()
-    #     state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
-
-    #     for i in range(3): #tqdm(range(0, full_state.shape[0] // self.batch_size, self.batch_size), leave=False):
-    #         # state, action, reward, next_state, done_mask, prob_action = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_done_mask[i:i+self.batch_size], full_prob_action[i:i+self.batch_size]
-            
-    #         td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
-    #         delta = td_target.to(self.device) - self.forward_v(state)
-    #         delta = delta.detach().cpu().numpy()
-
-    #         adv_lst = []
-    #         adv = 0.0
-    #         for delta_t in tqdm(delta[::-1], leave=False):
-    #             adv = self.gamma * self.lmbda * adv + delta_t[0]
-    #             adv_lst.append([adv])
-    #         adv_lst.reverse()
-    #         adv = torch.tensor(adv_lst, dtype=torch.float).to(self.device)
-
-    #         pi = self.forward_pi(state)
-    #         pi_action = pi.gather(1, action.to(self.device))
-    #         ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(self.device))) # a / b == exp(log(a) - log(b))
-
-    #         surr1 = ratio * adv
-    #         surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 + self.eps_clip) * adv
-    #         loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(self.forward_v(state), td_target.detach())
-
-    #         self.optimizer.zero_grad()
-    #         loss.mean().backward()
-    #         self.optimizer.step()
-
     def train_net(self):
         full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask = self.concatenate_data()
-        state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
-
-        for i in range(3): #tqdm(range(0, full_state.shape[0] // self.batch_size, self.batch_size), leave=False):
-            # state, action, reward, next_state, done_mask, prob_action = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_done_mask[i:i+self.batch_size], full_prob_action[i:i+self.batch_size]
+        if self.env_type == 'CartPole-v1':
+            state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
+            trial_num = range(3)
+        elif self.env_type == 'Bioniceye':
+            trial_range = range(0, full_state.shape[0] // self.batch_size, self.batch_size)
+        print(full_state.shape[0] // self.batch_size)
+        for i in tqdm(trial_range):
+            print(i, 'hi')
+            if self.env_type == 'Bioniceye':
+                state, action, reward, next_state, done_mask, prob_action = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_done_mask[i:i+self.batch_size], full_prob_action[i:i+self.batch_size]
             
-            td_target = reward + self.gamma * self.forward_v(next_state) * done_mask
-            delta = td_target - self.forward_v(state)
-            delta = delta.detach().numpy()
+            td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
+            delta = td_target.to(self.device) - self.forward_v(state)
+            delta = delta.detach().cpu().numpy()
 
             adv_lst = []
             adv = 0.0
@@ -164,16 +145,16 @@ class PPO(nn.Module):
                 adv = self.gamma * self.lmbda * adv + delta_t[0]
                 adv_lst.append([adv])
             adv_lst.reverse()
-            adv = torch.tensor(adv_lst, dtype=torch.float)
+            adv = torch.tensor(adv_lst, dtype=torch.float).to(self.device)
 
             pi = self.forward_pi(state)
-            pi_action = pi.gather(1, action)
-            ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action)) # a / b == exp(log(a) - log(b))
-
+            pi_action = pi.gather(1, action.to(self.device))
+            ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(self.device))) # a / b == exp(log(a) - log(b))
+            print(ratio.mean())
             surr1 = ratio * adv
             surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 + self.eps_clip) * adv
             loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(self.forward_v(state), td_target.detach())
-
+            
             self.optimizer.zero_grad()
             loss.mean().backward()
             self.optimizer.step()
@@ -191,7 +172,7 @@ class Policy(nn.Module):
         
         self.cnn_num_block = Sequential(
             Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-            ReLU(inplace=True), # perform th eoperation w/ using any additional memory
+            ReLU(inplace=True), # perform the operation w/ using any additional memory
             MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
 
             Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
