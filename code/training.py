@@ -55,7 +55,7 @@ class Experiment():
 
     def train(self):
         train_returns = {i:[] for i in range(self.episode_num)} 
-        test_returns = {i:[] for i in range(self.episode_num)}
+        train_returns = {i:[] for i in range(self.episode_num)}
         train_score, test_score = 0.0, 0.0
 
         if self.model_type == 'DQN':
@@ -83,20 +83,26 @@ class Experiment():
                         m = Categorical(probs) 
                         action = m.sample()
                         if self.env_type == 'Bioniceye':
-                            next_state, reward, done, info = self.env.step(t, action.item())
+                            next_state, reward, done, _ = self.env.step(t, action.item())
                         elif self.env_type == 'CartPole-v1':
-                            next_state, reward, done, info = self.env.step(action.item())
+                            next_state, reward, done, _ = self.env.step(action.item())
                     else:
                         if self.env_type == 'Bioniceye':
-                            next_state, reward, done, info = self.env.step(t, action)
+                            next_state, reward, done, _ = self.env.step(t, action)
                         elif self.env_type == 'CartPole-v1':
-                            next_state, reward, done, info = self.env.step(action)
+                            next_state, reward, done, _ = self.env.step(action)
                     train_returns[e].append(reward)
 
                     if self.model_type == 'PPO':
-                        self.model.put_data((state, action, reward/100., next_state, probs[action].item(), done)) # probs: (1, self.class_num)
+                        if self.env_type == 'Bioniceye':
+                            self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, self.class_num)
+                        elif self.env_type == 'CartPole-v1':
+                            self.model.put_data((state, action, reward/100., next_state, probs[action].item(), done))
                     elif self.model_type == 'REINFORCE':
-                        self.model.put_data((reward, probs[0][action].item()))
+                        if self.env_type == 'Bioniceye':
+                            self.model.put_data((reward, probs[0][action].item()))
+                        elif self.env_type == 'CartPole-v1':
+                            self.model.put_data((reward, probs[action].item()))
                     elif self.model_type == 'AC' or self.model_type == 'DQN':
                         self.model.put_data((state, action, reward, next_state, done))
                     
@@ -108,73 +114,28 @@ class Experiment():
                     train_score += reward
                     if done:
                         break
+
+                    if e == 0:
+                        best_model = self.model
+                    else:
+                        if sum(train_returns[e]) > sum(train_returns[e-1]):
+                            best_model = self.model
         
             # train based on one set of collected experiences
             if self.model_type != 'DQN':
                 self.model.train_net()
             else:
                 model_target = self.model.train_net(model_target)
-        
-            # validate the trained agent  
-            if self.env_type == 'Bioniceye':
-                state, trial_num = self.env.reset()
-            elif self.env_type == 'CartPole-v1':
-                state = self.env.reset()
-            
-            while not done:
-                self.model.eval()
-                for t in tqdm(range(trial_num), leave=False):
-                    if self.model_type == 'PPO' or self.model_type == 'REINFORCE' or self.model_type == 'AC':
-                        probs = self.model.forward_pi(torch.from_numpy(state).float())
-                    elif self.model_type == 'DQN':
-                        epsilon = max(0.01, 0.08 - 0.01*(e/200)) #Linear annealing from 8% to 1%
-                        action = self.model.sample_action(torch.from_numpy(state).float(), epsilon)                   
-                    
-                    if self.model_type != 'DQN':
-                        m = Categorical(probs) 
-                        action = m.sample()
-                        if self.env_type == 'Bioniceye':
-                            next_state, reward, done, info = self.env.step(t, action.item())
-                        elif self.env_type == 'CartPole-v1':
-                            next_state, reward, done, info = self.env.step(action.item())
-                    else:
-                        if self.env_type == 'Bioniceye':
-                            next_state, reward, done, info = self.env.step(t, action)
-                        elif self.env_type == 'CartPole-v1':
-                            next_state, reward, done, info = self.env.step(action)
-                    if info:
-                        value = 1
-                    else:
-                        value = 0
-                    test_returns[e].append(value)
-
-                    if self.model_type == 'PPO':
-                        self.model.put_data((state, action, reward/100., next_state, probs[action], done)) # probs: (1, self.class_num) probs[0][action]
-                    elif self.model_type == 'REINFORCE':
-                        self.model.put_data((reward, probs[0][action]))
-                    elif self.model_type == 'AC' or self.model_type == 'DQN':
-                        self.model.put_data((state, action, reward, next_state, done))
-                    
-                    state = next_state
-                    
-                    test_score += reward
-                    if done:
-                        break
-
-                if e == 0:
-                    best_model = self.model
-                else:
-                    if sum(test_returns[e]) > sum(test_returns[e-1]):
-                        best_model = self.model
 
             if e % self.print_interval == 0 and e != 0:
-                print(f"EPISODE: {e} AVERAGE TRAINING SCORE: {train_score/self.print_interval: .1f} AVERAGE VALIDATION SCORE: {test_score/self.print_interval: .1f}")
+                print(f"EPISODE: {e} AVERAGE SCORE: {train_score/self.print_interval: .1f}")
                 train_score, test_score = 0.0, 0.0
                 if self.model_type == 'DQN':
                     model_target.load_state_dict(self.model.state_dict())
             elif e == 0:
-                print(f"EPISODE: {e} AVERAGE TRAINING SCORE: {train_score: .1f} AVERAGE VALIDATION SCORE: {test_score: .1f}")
+                print(f"EPISODE: {e} AVERAGE SCORE: {train_score: .1f}")
         
         if self.render:
             self.env.close()
-        return best_model, train_returns, test_returns
+
+        return best_model, train_returns, time_memory
