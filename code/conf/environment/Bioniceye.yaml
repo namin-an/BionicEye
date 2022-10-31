@@ -1,4 +1,5 @@
 # @package _group_
 name: Bioniceye
 
-gamma: 0.98
+episode_num: 300
+batch_size: 16
