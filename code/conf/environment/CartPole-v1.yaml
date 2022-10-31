@@ -1,4 +1,5 @@
 # @package _group_
 name: CartPole-v1
 
-gamma: 0.98
+episode_num: 500
+batch_size: 16
