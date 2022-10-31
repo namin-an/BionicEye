@@ -69,7 +69,7 @@ class BionicEyeEnv_v0(Env):
         info = True
       elif (mach_pred != label) and (hum_pred != label):
         reward = 0
-        info = False
+        info = True
       if (mach_pred == label) and (hum_pred != label):
         reward = -1
         info = False
