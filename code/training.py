@@ -1,36 +1,26 @@
-import time
-from collections import deque
 from tqdm import tqdm
-import numpy as np
 import torch
 from torch.distributions import Categorical
-import torch.optim as optim
+from torch.utils.data import DataLoader, random_split
+import torch.nn.functional as F
 import gym
 
 import sys
 sys.path.append('/Users/naminan/Development/Project/code')
 from bioniceye.bioniceye.envs.bioniceye_env_v0 import BionicEyeEnv_v0
-from models import PPO, Policy, AC, DQN, train_DQN
+from dataloader.kface16000 import KFaceDataLoader
+from models import PPO, Policy, AC, DQN, train_DQN, CNN
 from utils.ReplayBuffer import ReplayBuffer
+from utils.early_stop import EarlyStopping
 
 
-class Experiment():
+class ExperimentRL():
     def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, *argv):
-
-        self.image_dir = image_dir
-        self.label_path = label_path
-        self.pred_dir = pred_dir
-        self.stim_type = stim_type
-        self.top1 = top1
-
-        self.data_path = data_path
-        self.class_num = class_num
 
         self.env_type = env_type
         self.model_type = model_type
         self.episode_num = episode_num
         self.print_interval = print_interval
-        self.learning_rate = learning_rate
         self.gamma = gamma
         self.batch_size = batch_size
         self.render = render
@@ -39,23 +29,25 @@ class Experiment():
         if len(argv[0]) >= 1:
             self.lmbda, self.eps_clip = argv[0][0], argv[0][1]
 
+        # Setup environments
         if self.env_type == 'Bioniceye':
-            self.env = BionicEyeEnv_v0(self.image_dir, self.label_path, self.pred_dir, self.stim_type, self.top1, self.data_path, self.class_num)
+            self.env = BionicEyeEnv_v0(image_dir, label_path, pred_dir, stim_type, top1, data_path, self.class_num)
         elif self.env_type == 'CartPole-v1':
             self.env = gym.make('CartPole-v1')
 
+        # Prepare models
         if self.model_type == 'PPO':
-            self.model = PPO(self.class_num, self.env_type, self.learning_rate, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+            self.model = PPO(class_num, self.env_type, learning_rate, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
         elif self.model_type == 'REINFORCE':
-            self.model = Policy(self.class_num, self.env_type, self.learning_rate, self.gamma, self.device)
+            self.model = Policy(class_num, self.env_type, learning_rate, self.gamma, self.device)
         elif self.model_type == 'AC':
-            self.model = AC(self.class_num, self.env_type, self.learning_rate, self.gamma, self.batch_size, self.device)
+            self.model = AC(class_num, self.env_type, learning_rate, self.gamma, self.batch_size, self.device)
         elif self.model_type == 'DQN':
-            self.model = DQN(self.class_num, self.env_type, self.device)
-            self.model_target = DQN(self.class_num, self.env_type, self.device)
+            self.model = DQN(class_num, self.env_type, self.device)
+            self.model_target = DQN(class_num, self.env_type, self.device)
             self.model_target.load_state_dict(self.model.state_dict())
             self.buffer = ReplayBuffer()
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self):
         train_returns = {i:[] for i in range(self.episode_num)} 
@@ -69,7 +61,7 @@ class Experiment():
                 trial_num = 20
             done = False
             
-            # collect experiences
+            # Collect experiences
             while not done:
                 self.model.train()
                 for t in tqdm(range(trial_num), leave=False):
@@ -95,7 +87,7 @@ class Experiment():
 
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
-                            self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, self.class_num)
+                            self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, class_num)
                         elif self.env_type == 'CartPole-v1':
                             self.model.put_data((state, action, reward/100., next_state, probs[action].item(), done))
                     elif self.model_type == 'REINFORCE':
@@ -129,12 +121,12 @@ class Experiment():
                         if sum(train_returns[e]) > sum(train_returns[e-1]):
                             best_model = self.model
         
-            # train based on one set of collected experiences
+            # Train with collected transitions
             if self.model_type != 'DQN':
                 self.model.train_net()
             else:
                 if self.buffer.size() > 128:
-                    self.model, self.model_target, self.optimizer = train_DQN(self.env_type, self.model, self.model_target, self.buffer, self.optimizer, self.learning_rate, self.gamma, self.batch_size, self.device)
+                    self.model, self.model_target, self.optimizer = train_DQN(self.env_type, self.model, self.model_target, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
 
             if e % self.print_interval == 0 and e != 0:
                 print(f"EPISODE: {e} AVERAGE SCORE: {train_score/self.print_interval: .1f}")
@@ -148,3 +140,63 @@ class Experiment():
             self.env.close()
 
         return best_model, train_returns
+
+
+class ExperimentSL():
+    def __init__(self, image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, model_file_path, device):
+
+        self.epoch_num = epoch_num
+        self.print_interval = print_interval
+
+        self.device = device
+
+        # Prepare dataloader
+        KFaceDataset = KFaceDataLoader(image_dir, data_path, class_num)
+        total_size = len(KFaceDataset)
+        train_size = int(total_size*0.8)
+        trainDataset, validDataset = random_split(KFaceDataset, [train_size, total_size - train_size])
+        self.train_loader = DataLoader(trainDataset, batch_size=batch_size, num_workers=0, pin_memory=True, shuffle=True)
+        self.valid_loader = DataLoader(validDataset, batch_size=batch_size*2, num_workers=0, pin_memory=True, shuffle=False)
+
+        # Call CNN model
+        self.model = CNN(class_num).to(self.device)
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, mode='min', factor=0.1, patience=5, min_lr=1e-8, verbose=False)
+        self.early_stopping = EarlyStopping(verbose=True, checkpoint_file=model_file_path)
+
+    def train(self):
+        for e in tqdm(range(self.epoch_num)):
+            losses, valid_losses = [], []
+
+            # Train
+            self.model.train()
+            for i, (images, labels) in tqdm(enumerate(self.train_loader), leave=False):
+                images, labels = images.to(self.device), labels.to(self.device)
+                pred_probs_full = self.model(images)
+                loss = self.loss_fn(pred_probs_full, labels)
+                _, pred_labels = torch.max(pred_probs_full, dim=-1)
+
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+                losses.append(loss.item())
+            
+            # Validate
+            self.model.eval()
+            with torch.no_grad():
+                for i, (images, labels) in tqdm(enumerate(self.valid_loader), leave=False):
+                    images, labels = images.to(self.device), labels.to(self.device)
+                    pred_probs_full = self.model(images)
+                    loss = self.loss_fn(pred_probs_full, labels)
+                    _, pred_labels = torch.max(pred_probs_full, dim=-1)
+
+                    valid_losses.append(loss.item())
+            
+            self.scheduler.step(loss)
+            self.early_stopping(loss, self.model)
+            if self.early_stopping.early_stop:
+                break
+
+            if e % self.print_interval == 0:
+                print(f"EPOCH: {e} AVERAGE CUMULATEIVE TRAINING LOSS: {sum(losses)/len(losses): .2f} AVERAGE CUMULATIVE VALIDATION LOSS: {sum(valid_losses)/len(valid_losses): .2f}")
