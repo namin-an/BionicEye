@@ -10,26 +10,41 @@ server:
 seed: 0
 
 # \ in Windows and / on Mac
-directory:
-  image_dir: data\sample_for_dev_test # data\sample_for_dev_test2
-  label_path: data\211105_QAs_for_Set0_CNN_SVC_4classes_partial.csv
-  pred_dir: data\Human_Expert\211202
-  data_path: data\210827_ANNA_Removing_uncontaminated_data.csv
-  output_dir: outputs
-
-data:
-  stim_type: opt # elec
-  top1: True
-  class_num: 16
+train: SL # RL
 
 reinforcement:
-  gamma: 0.99
-  learning_rate: 0.0005
+  directory:
+    image_dir: data\sample_for_dev_test # data\sample_for_dev_test2
+    label_path: data\211105_QAs_for_Set0_CNN_SVC_4classes_partial.csv
+    pred_dir: data\Human_Expert\211202
+    data_path: data\210827_ANNA_Removing_uncontaminated_data.csv
 
-training:
-  render: False
-  print_interval: 20
+  data:
+    stim_type: opt # elec
+    top1: True
+    class_num: 16
 
+  training:
+    gamma: 0.99
+    learning_rate: 0.0005
+    render: False
+    print_interval: 20
+
+supervised:
+  directory:
+    image_dir: data\Middle_Resolution_137_unzipped_parcropped_128_removed_train
+    data_path: data\210827_ANNA_Removing_uncontaminated_data.csv
+
+  data:
+    class_num: 16
+
+  training:
+    epoch_num: 1000
+    print_interval: 20
+    learning_rate: 1e-4
+    batch_size: 16
+
+output_dir: outputs
 monitor_tm: True
 save_info: True
   
