@@ -14,7 +14,6 @@ class PPO(nn.Module):
         super(PPO, self).__init__()
 
         self.env_type = env_type
-        self.learning_rate = learning_rate
         self.gamma = gamma
         self.lmbda = lmbda
         self.eps_clip = eps_clip
@@ -26,7 +25,7 @@ class PPO(nn.Module):
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
                 Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-                ReLU(inplace=True), # perform the operation w/ using any additional memory
+                ReLU(inplace=True),
                 MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
 
                 Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
@@ -54,7 +53,7 @@ class PPO(nn.Module):
             self.fc_pi = Linear(256,2).to(self.device)
             self.fc_v  = Linear(256,1).to(self.device)
         
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward_pi(self, xb):
         xb = xb.to(self.device)
@@ -160,7 +159,6 @@ class Policy(nn.Module):
 
         self.env_type = env_type
         self.gamma = gamma
-        self.learning_rate = learning_rate
         self.device = device
         
         self.data = []
@@ -168,7 +166,7 @@ class Policy(nn.Module):
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
                 Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-                ReLU(inplace=True), # perform the operation w/ using any additional memory
+                ReLU(inplace=True),
                 MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
 
                 Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
@@ -191,7 +189,7 @@ class Policy(nn.Module):
             self.fc1   = Linear(4,256).to(self.device)
             self.fc2 = Linear(256,2).to(self.device)
     
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward_pi(self, xb):
         xb = xb.to(self.device)
@@ -228,7 +226,6 @@ class AC(nn.Module):
         super(AC, self).__init__()
 
         self.env_type = env_type
-        self.learning_rate = learning_rate
         self.gamma = gamma
         self.batch_size = batch_size
         self.device = device
@@ -238,7 +235,7 @@ class AC(nn.Module):
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
                 Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-                ReLU(inplace=True), # perform th eoperation w/ using any additional memory
+                ReLU(inplace=True), 
                 MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
 
                 Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
@@ -267,7 +264,7 @@ class AC(nn.Module):
             self.fc_pi = nn.Linear(256,2).to(self.device)
             self.fc_v = nn.Linear(256,1).to(self.device)
         
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward_pi(self, xb):
         xb = xb.to(self.device)
@@ -363,7 +360,7 @@ class DQN(nn.Module):
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
                 Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-                ReLU(inplace=True), # perform th eoperation w/ using any additional memory
+                ReLU(inplace=True), 
                 MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
 
                 Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
@@ -411,7 +408,7 @@ class DQN(nn.Module):
         else:
             return out.argmax().item()
     
-def train_DQN(env_type, model, model_target, memory, optimizer, learning_rate, gamma, batch_size, device):
+def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_size, device):
 
     if env_type == 'CartPole-v1':
         trial_range = range(10)
@@ -432,3 +429,37 @@ def train_DQN(env_type, model, model_target, memory, optimizer, learning_rate, g
         optimizer.step()
 
     return model, model_target, optimizer
+
+
+class CNN(nn.Module):
+    def __init__(self, num_class):
+        super(CNN, self).__init__()
+    
+        self.cnn_num_block = Sequential(
+            Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
+            ReLU(inplace=True), 
+            MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
+
+            Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
+
+            Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
+
+            Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=0),
+            ReLU(inplace=True))
+            
+        self.linear_num_block = Sequential(
+            Linear(in_features=256*11*11, out_features=128, bias=True), 
+            ReLU(inplace=True), 
+            Linear(in_features=128, out_features=num_class, bias=True))
+
+    def forward(self, xb):
+        xb = torch.unsqueeze(xb, 1) #(batch_size, h, w) -> (batch_size, 1, h, w)
+        xb = self.cnn_num_block(xb)
+        xb = xb.view(xb.size(0), -1) 
+        xb = self.linear_num_block(xb) # -> (batch_size, num_class)
+        out = xb
+        return out
