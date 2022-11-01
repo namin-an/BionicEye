@@ -22,31 +22,18 @@ class BionicEyeEnv_v0(Env):
 
     def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, **kwargs):
         super(BionicEyeEnv_v0, self).__init__()
-
-        """
-        data_path: '/Users/naminan/Development/Project/code/data/210827_ANNA_Removing_uncontaminated_data.csv'
-        """
-
-        self.image_dir = image_dir
-        self.label_path = label_path
-        self.pred_dir = pred_dir
-        self.stim_type = stim_type
-        self.top1 = top1
-
-        self.data_path = data_path
-        self.class_num = class_num
         
-        self.HumanDataLoader = HumanDataLoader(self.image_dir, self.label_path, self.pred_dir, self.stim_type, self.top1)
-        self.trial_num = len(self.HumanDataLoader)
-        self.batch_size = kwargs.get('batch_size', self.trial_num)
-        self.trainloader = DataLoader(self.HumanDataLoader, batch_size=self.batch_size, num_workers=0, pin_memory=True)
-        self.obs, self.label, self.human_pred = next(iter(self.trainloader))
+        HumanDataset = HumanDataLoader(image_dir, label_path, pred_dir, stim_type, top1)
+        self.trial_num = len(HumanDataset)
+        batch_size = kwargs.get('batch_size', self.trial_num)
+        trainloader = DataLoader(HumanDataset, batch_size=batch_size, num_workers=0, pin_memory=True, shuffle=False)
+        self.obs, self.label, self.human_pred = next(iter(trainloader))
         
-        self.df = pd.read_csv(data_path)
+        df = pd.read_csv(data_path)
         random.seed(22)
-        self.l = list(range(self.df.shape[0]))
-        self.set_1 = random.sample(self.l, self.class_num)
-        self.old_unique_labels = list(set([self.df.iloc[i, 0] for i in self.set_1]))
+        l = list(range(df.shape[0]))
+        set_1 = random.sample(l, class_num)
+        self.old_unique_labels = list(set([df.iloc[i, 0] for i in set_1]))
 
     def reset(self):       
       """
