@@ -66,8 +66,8 @@ def main(cfg: DictConfig):
             tracemalloc.start()
             model, train_returns = exp.train()
             memory = tracemalloc.get_traced_memory()
-            print(f"Total training time: {time.time() - start_time} (seconds) \n Peak Memory: {memory[-1]} [byte]")
-            print(f"Total training time: {(time.time() - start_time) / 60} (minutes) \n Peak Memory: {memory[-1] / (1e6)} [mb]")
+            print(f"Total training time: {time.time() - start_time : .2f} (seconds) \n Peak Memory: {memory[-1]} [byte]")
+            print(f"Total training time: {(time.time() - start_time) / 60 : .2f} (minutes) \n Peak Memory: {memory[-1] / (1e6) : .2f} [mb]")
             tracemalloc.stop()
         else:
             model, train_returns = exp.train()
@@ -90,19 +90,20 @@ def main(cfg: DictConfig):
         print_interval = cfg.supervised.training.print_interval
         learning_rate = cfg.supervised.training.learning_rate
         batch_size = cfg.supervised.training.batch_size
+        seed = cfg.supervised.training.seed
 
         os.makedirs(f"{cfg.output_dir}")
         model_file_path = os.path.join(cfg.output_dir, f'CNN.pth')
 
         # Perform experiment
-        exp = ExperimentSL(image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, model_file_path, device)
+        exp = ExperimentSL(image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, seed, model_file_path, device)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
             exp.train()
             memory = tracemalloc.get_traced_memory()
-            print(f"Total training time: {time.time() - start_time} (seconds) \n Memory: {memory[-1]} [byte]")
-            print(f"Total training time: {(time.time() - start_time) / 60} (minutes) \n Memory: {memory[-1] / (1e6)} [mb]")
+            print(f"Total training time: {time.time() - start_time : .2f} (seconds) \n Memory: {memory[-1]} [byte]")
+            print(f"Total training time: {(time.time() - start_time) / 60 : .2f} (minutes) \n Memory: {memory[-1] / (1e6) : .2f} [mb]")
             tracemalloc.stop()
         else:
             exp.train()
