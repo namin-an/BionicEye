@@ -2,7 +2,6 @@ from tqdm import tqdm
 import torch
 from torch.distributions import Categorical
 from torch.utils.data import DataLoader, random_split
-import torch.nn.functional as F
 import gym
 
 import sys
@@ -143,7 +142,7 @@ class ExperimentRL():
 
 
 class ExperimentSL():
-    def __init__(self, image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, model_file_path, device):
+    def __init__(self, image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, seed, model_file_path, device):
 
         self.epoch_num = epoch_num
         self.print_interval = print_interval
@@ -151,7 +150,7 @@ class ExperimentSL():
         self.device = device
 
         # Prepare dataloader
-        KFaceDataset = KFaceDataLoader(image_dir, data_path, class_num)
+        KFaceDataset = KFaceDataLoader(image_dir, data_path, None, class_num, 'train', seed)
         total_size = len(KFaceDataset)
         train_size = int(total_size*0.8)
         trainDataset, validDataset = random_split(KFaceDataset, [train_size, total_size - train_size])
@@ -199,4 +198,4 @@ class ExperimentSL():
                 break
 
             if e % self.print_interval == 0:
-                print(f"EPOCH: {e} AVERAGE CUMULATEIVE TRAINING LOSS: {sum(losses)/len(losses): .2f} AVERAGE CUMULATIVE VALIDATION LOSS: {sum(valid_losses)/len(valid_losses): .2f}")
+                print(f"EPOCH: {e} AVERAGE TRAINING LOSS: {sum(losses)/len(losses): .2f} AVERAGE VALIDATION LOSS: {sum(valid_losses)/len(valid_losses): .2f}")
