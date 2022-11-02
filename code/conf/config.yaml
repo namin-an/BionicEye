@@ -43,6 +43,7 @@ supervised:
     print_interval: 20
     learning_rate: 1e-4
     batch_size: 16
+    seed: 2
 
 output_dir: outputs
 monitor_tm: True
