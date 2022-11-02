@@ -7,21 +7,27 @@ import cv2 as cv
 
 
 class KFaceDataLoader():
-    def __init__(self, image_dir, data_path, class_num):
+    def __init__(self, image_dir, data_path, label_path, class_num, train_test, seed):
 
         self.image_dir = image_dir
-        self.data_path = data_path
         
-        df = pd.read_csv(self.data_path)
+        df = pd.read_csv(data_path)
         l = list(range(df.shape[0]))
         random.seed(22)
         set_1 = random.sample(l, class_num)
         face_lst = [df.iloc[i, 0] for i in set_1]
         self.face_dic = {str(face) : int(i) for (i, face) in enumerate(face_lst)}
-        par_lst = os.listdir(os.path.join(self.image_dir, str(face_lst[0])))
-        sel_par_lst = random.sample(par_lst, 1000) # Select 1k images per face
-        self.datas = list(itertools.product(face_lst, sel_par_lst))
-    
+
+        if train_test == 'train':
+            par_lst = os.listdir(os.path.join(self.image_dir, str(face_lst[0])))
+            random.seed(seed)
+            sel_par_lst = random.sample(par_lst, 1000) # Select 1k images per face
+            self.datas = list(itertools.product(face_lst, sel_par_lst))
+        
+        elif train_test == 'test':
+            question_df = pd.read_csv(label_path)
+            self.datas = [(file_name.split('_')[0], file_name[len(file_name.split('_')[0])+1:]) for file_name in question_df['Answer'].values]
+            
     def __len__(self):
         return len(self.datas)
     
