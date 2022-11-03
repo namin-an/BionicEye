@@ -66,8 +66,8 @@ def main(cfg: DictConfig):
             tracemalloc.start()
             model, train_returns = exp.train()
             memory = tracemalloc.get_traced_memory()
-            print(f"Total training time: {time.time() - start_time : .2f} (seconds) \n Peak Memory: {memory[-1]} [byte]")
-            print(f"Total training time: {(time.time() - start_time) / 60 : .2f} (minutes) \n Peak Memory: {memory[-1] / (1e6) : .2f} [mb]")
+            print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 60 : .2f} (minutes)")
+            print(f"Peak Memory: {memory[-1]} [byte] or {memory[-1] / (1e6) : .2f} [mb]")
             tracemalloc.stop()
         else:
             model, train_returns = exp.train()
@@ -102,8 +102,8 @@ def main(cfg: DictConfig):
             tracemalloc.start()
             exp.train()
             memory = tracemalloc.get_traced_memory()
-            print(f"Total training time: {time.time() - start_time : .2f} (seconds) \n Memory: {memory[-1]} [byte]")
-            print(f"Total training time: {(time.time() - start_time) / 60 : .2f} (minutes) \n Memory: {memory[-1] / (1e6) : .2f} [mb]")
+            print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 60 : .2f} (minutes)")
+            print(f"Peak Memory: {memory[-1]} [byte] or {memory[-1] / (1e6) : .2f} [mb]")
             tracemalloc.stop()
         else:
             exp.train()
