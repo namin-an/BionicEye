@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import sys
-sys.path.append('/Users/naminan/Development/Project/code')
+# sys.path.append('/Users/naminan/Development/Project/code')
 from dataloader.human720 import HumanDataLoader
 
 
@@ -20,13 +20,12 @@ class BionicEyeEnv_v0(Env):
 
     metadata = {'render_modes': ['human']}
 
-    def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, **kwargs):
+    def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num):
         super(BionicEyeEnv_v0, self).__init__()
         
         HumanDataset = HumanDataLoader(image_dir, label_path, pred_dir, stim_type, top1)
         self.trial_num = len(HumanDataset)
-        batch_size = kwargs.get('batch_size', self.trial_num)
-        trainloader = DataLoader(HumanDataset, batch_size=batch_size, num_workers=0, pin_memory=True, shuffle=False)
+        trainloader = DataLoader(HumanDataset, batch_size=self.trial_num, num_workers=0, pin_memory=True, shuffle=False)
         self.obs, self.label, self.human_pred = next(iter(trainloader))
         
         df = pd.read_csv(data_path)
@@ -48,23 +47,24 @@ class BionicEyeEnv_v0(Env):
       End the episode if all the observations were seen by the agent.
       """
       obs, label, hum_pred = self.obs[t], self.label[t], self.human_pred[t]
+      label, hum_pred = label.item(), hum_pred.item()
 
       mach_pred = self.old_unique_labels[action]
-
+      
       if (mach_pred == label) and (hum_pred == label):
         reward = 1
-        info = True
+        info = False
       elif (mach_pred != label) and (hum_pred != label):
-        reward = 0
-        info = True
+        reward = 1
+        info = False
       if (mach_pred == label) and (hum_pred != label):
         reward = -1
-        info = False
+        info = True
       elif (mach_pred != label) and (hum_pred == label):
-        reward = -1
-        info = False
-
-      if info or t == self.trial_num - 1:
+        reward = -1 
+        info = True
+      
+      if reward < -10 or t == self.trial_num - 1:
         done = True
       else:
         done = False
