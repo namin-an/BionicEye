@@ -1,3 +1,3 @@
 #! bin/bash/
 
-CUDA_VISIBLE_DEVICES=0,1,2 python3 ../main.py -m seed=1,2,3,4,5,6,7
+CUDA_VISIBLE_DEVICES=0,1,2 python3 ../main.py -m supervised.training.seed=32,64,128,256,512,1024,2048
