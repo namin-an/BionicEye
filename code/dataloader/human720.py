@@ -24,22 +24,21 @@ class HumanDataLoader():
        
         # FOR THE HUMAN PREDICTIONS
         self.preds = deque()
-        for m in tqdm(range(len(self.main_files))):
-            temp_df = pd.read_csv(self.main_files[m])
+        n = 9
+        for i in tqdm(range(1, 80*n+1, 80), leave=False):
+            j = i+79 
+            temp_df = pd.read_csv(os.path.join(pred_dir, f'main_test({i}_{j}).csv'))
             temp_df = temp_df[temp_df['유저식별아이디'].isin(self.sel_ppl)]
             if top1:
                 temp_df = temp_df.loc[:, temp_df.columns.str.startswith('선택_A')]
             else:
                 temp_df = temp_df.loc[:, temp_df.columns.str.startswith('선택_B')]
+            temp_df = temp_df.fillna(0)
             for n in range(len(temp_df.columns)):
-                temp_preds = temp_df.iloc[:, 0].values.astype(str).astype(float).astype(int)
-                try:
-                    temp_pred = np.bincount(temp_preds).argmax() 
-                except:
-                    temp_preds = [x for x in temp_preds if x > 0] # wierd value (-9223372036854775808)
-                    temp_pred = np.bincount(temp_preds).argmax() 
+                temp_preds = temp_df.iloc[:, n].values.astype(str).astype(float).astype(int)
+                temp_pred = np.bincount(temp_preds).argmax() 
                 self.preds.append(temp_pred)
-
+        
         assert len(self.labels) == len(self.preds)
     
     def __len__(self):
