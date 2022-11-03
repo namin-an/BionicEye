@@ -20,8 +20,7 @@ class KFaceDataLoader():
 
         if train_test == 'train':
             par_lst = os.listdir(os.path.join(self.image_dir, str(face_lst[0])))
-            random.seed(seed)
-            sel_par_lst = random.sample(par_lst, 1000) # Select 1k images per face
+            sel_par_lst = random.sample(par_lst, seed) 
             self.datas = list(itertools.product(face_lst, sel_par_lst))
         
         elif train_test == 'test':
