@@ -89,7 +89,7 @@ class PPO(nn.Module):
         self.data.append(transition)
     
     def concatenate_data(self):
-        s_lst, a_lst, r_lst, s_prime_lst, prob_a_lst, done_lst = [], [], [], [], [], []
+        a_lst, r_lst, prob_a_lst, done_lst = [], [], [], []
         
         for (i, transition) in tqdm(enumerate(self.data), leave=False):
             s, a, r, s_prime, prob_a, done = transition          
@@ -123,11 +123,11 @@ class PPO(nn.Module):
             state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
             trial_range = range(10)
         elif self.env_type == 'Bioniceye':
-            trial_range = range(0, full_state.shape[0] // self.batch_size, self.batch_size)
+            trial_range = range(0, full_state.shape[0], self.batch_size)
 
         for i in tqdm(trial_range, leave=False):
             if self.env_type == 'Bioniceye':
-                state, action, reward, next_state, done_mask, prob_action = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_done_mask[i:i+self.batch_size], full_prob_action[i:i+self.batch_size]
+                state, action, reward, next_state, prob_action, done_mask = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_prob_action[i:i+self.batch_size], full_done_mask[i:i+self.batch_size]
             
             td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
             delta = td_target.to(self.device) - self.forward_v(state)
@@ -300,7 +300,7 @@ class AC(nn.Module):
         self.data.append(transition)
     
     def concatenate_data(self):
-        a_lst, r_lst, done_lst, prob_a_lst = [], [], [], []
+        a_lst, r_lst, done_lst = [], [], []
         
         for (i, transition) in tqdm(enumerate(self.data), leave=False):
             s, a, r, s_prime, done = transition
@@ -332,7 +332,7 @@ class AC(nn.Module):
             state, action, reward, next_state, done_mask = full_state, full_action, full_reward, full_next_state, full_done_mask
             trial_range = range(10)
         elif self.env_type == 'Bioniceye':
-            trial_range = range(0, full_state.shape[0] // self.batch_size, self.batch_size)
+            trial_range = range(0, full_state.shape[0], self.batch_size)
 
         for i in tqdm(trial_range, leave=False):
             if self.env_type == 'Bioniceye':
@@ -413,7 +413,7 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
-        trial_range = range(0, full_state.shape[0] // batch_size, batch_size)
+        trial_range = range(0, full_state.shape[0], batch_size)
 
     for i in tqdm(trial_range, leave=False):
         state, action, reward, next_state, done_mask = memory.sample(batch_size)
