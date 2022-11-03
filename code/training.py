@@ -4,8 +4,8 @@ from torch.distributions import Categorical
 from torch.utils.data import DataLoader, random_split
 import gym
 
-import sys
-sys.path.append('/Users/naminan/Development/Project/code')
+# import sys
+# sys.path.append('/Users/naminan/Development/Project/code')
 from bioniceye.bioniceye.envs.bioniceye_env_v0 import BionicEyeEnv_v0
 from dataloader.kface16000 import KFaceDataLoader
 from models import PPO, Policy, AC, DQN, train_DQN, CNN
@@ -30,7 +30,7 @@ class ExperimentRL():
 
         # Setup environments
         if self.env_type == 'Bioniceye':
-            self.env = BionicEyeEnv_v0(image_dir, label_path, pred_dir, stim_type, top1, data_path, self.class_num)
+            self.env = BionicEyeEnv_v0(image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num)
         elif self.env_type == 'CartPole-v1':
             self.env = gym.make('CartPole-v1')
 
@@ -57,7 +57,7 @@ class ExperimentRL():
                 state, trial_num = self.env.reset()
             elif self.env_type == 'CartPole-v1':
                 state = self.env.reset()
-                trial_num = 20
+                trial_num = 16
             done = False
             
             # Collect experiences
@@ -83,7 +83,7 @@ class ExperimentRL():
                         elif self.env_type == 'CartPole-v1':
                             next_state, reward, done, _ = self.env.step(action)
                     train_returns[e].append(reward)
-
+                    print(reward)
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
                             self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, class_num)
@@ -111,15 +111,16 @@ class ExperimentRL():
                         self.env.render(state)
                     
                     train_score += reward
-                    if done:
-                        break
 
                     if e == 0:
                         best_model = self.model
                     else:
                         if sum(train_returns[e]) > sum(train_returns[e-1]):
                             best_model = self.model
-        
+                            
+                    if done:
+                        break
+            
             # Train with collected transitions
             if self.model_type != 'DQN':
                 self.model.train_net()
@@ -188,7 +189,6 @@ class ExperimentSL():
                     images, labels = images.to(self.device), labels.to(self.device)
                     pred_probs_full = self.model(images)
                     loss = self.loss_fn(pred_probs_full, labels)
-                    _, pred_labels = torch.max(pred_probs_full, dim=-1)
 
                     valid_losses.append(loss.item())
             
