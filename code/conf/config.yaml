@@ -1,6 +1,6 @@
 defaults:
-  - environment: CartPole-v1
-  - algorithm: DQN
+  - environment: Bioniceye # Bioniceye or CartPole-v1
+  - algorithm: PPO
 
 server:
   ip: "127.0.0.1"
@@ -10,7 +10,7 @@ server:
 seed: 0
 
 # \ in Windows and / on Mac
-train: SL # RL
+train: RL # SL or RL
 
 reinforcement:
   directory:
