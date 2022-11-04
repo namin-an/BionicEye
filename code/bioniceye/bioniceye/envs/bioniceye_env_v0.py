@@ -11,8 +11,6 @@ from gym import Env, spaces
 import torch
 from torch.utils.data import DataLoader
 
-import sys
-# sys.path.append('/Users/naminan/Development/Project/code')
 from dataloader.human720 import HumanDataLoader
 
 
@@ -55,16 +53,16 @@ class BionicEyeEnv_v0(Env):
         reward = 1
         info = False
       elif (mach_pred != label) and (hum_pred != label):
-        reward = 1
-        info = False
-      if (mach_pred == label) and (hum_pred != label):
-        reward = -1
+        reward = 0
+        info = True
+      elif (mach_pred == label) and (hum_pred != label):
+        reward = 0
         info = True
       elif (mach_pred != label) and (hum_pred == label):
-        reward = -1 
-        info = True
+        reward = 0 
+        info = False
       
-      if reward < -10 or t == self.trial_num - 1:
+      if t == self.trial_num - 1:
         done = True
       else:
         done = False
