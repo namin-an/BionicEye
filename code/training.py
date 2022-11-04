@@ -83,7 +83,7 @@ class ExperimentRL():
                         elif self.env_type == 'CartPole-v1':
                             next_state, reward, done, _ = self.env.step(action)
                     train_returns[e].append(reward)
-                    print(reward)
+                    
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
                             self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, class_num)
