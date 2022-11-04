@@ -1,9 +1,12 @@
 # Custom
 .*
+data/
 outputs/
 multirun/
-checkpoints/
 figures/
+
+temp.*
+Reinforcement_Learning.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
