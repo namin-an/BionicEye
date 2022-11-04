@@ -413,7 +413,7 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
-        trial_range = range(0, full_state.shape[0], batch_size)
+        trial_range = range(0, memory.size(), batch_size)
 
     for i in tqdm(trial_range, leave=False):
         state, action, reward, next_state, done_mask = memory.sample(batch_size)
