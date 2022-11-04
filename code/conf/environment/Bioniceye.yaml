@@ -1,5 +1,5 @@
 # @package _group_
 name: Bioniceye
 
-episode_num: 300
+episode_num: 1000
 batch_size: 16
