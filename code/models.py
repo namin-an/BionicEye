@@ -10,7 +10,7 @@ from torch.nn import Linear, ReLU, Sequential, Conv2d, MaxPool2d
 
 
 class PPO(nn.Module):
-    def __init__(self, num_class, env_type, learning_rate, gamma, lmbda, eps_clip, batch_size, device):
+    def __init__(self, class_num, env_type, learning_rate, gamma, lmbda, eps_clip, batch_size, device):
         super(PPO, self).__init__()
 
         self.env_type = env_type
@@ -42,7 +42,7 @@ class PPO(nn.Module):
             self.linear_num_block_pi = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
                 ReLU(inplace=True), 
-                Linear(in_features=128, out_features=num_class, bias=True)).to(self.device)
+                Linear(in_features=128, out_features=class_num, bias=True)).to(self.device)
             
             self.linear_num_block_v = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
@@ -63,7 +63,7 @@ class PPO(nn.Module):
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
             xb = xb.view(xb.size(0), -1) # -> (batch_size, 256*11*11)
-            xb = self.linear_num_block_pi(xb) # -> (batch_size, num_class)
+            xb = self.linear_num_block_pi(xb) # -> (batch_size, class_num)
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
             xb = self.fc_pi(xb)
@@ -154,7 +154,7 @@ class PPO(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, num_class, env_type, learning_rate, gamma, device):
+    def __init__(self, class_num, env_type, learning_rate, gamma, device):
         super(Policy, self).__init__()
 
         self.env_type = env_type
@@ -183,7 +183,7 @@ class Policy(nn.Module):
             self.linear_num_block_pi = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
                 ReLU(inplace=True), 
-                Linear(in_features=128, out_features=num_class, bias=True)).to(self.device)  
+                Linear(in_features=128, out_features=class_num, bias=True)).to(self.device)  
         
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4,256).to(self.device)
@@ -222,7 +222,7 @@ class Policy(nn.Module):
 
 
 class AC(nn.Module):
-    def __init__(self, num_class, env_type, learning_rate, gamma, batch_size, device):
+    def __init__(self, class_num, env_type, learning_rate, gamma, batch_size, device):
         super(AC, self).__init__()
 
         self.env_type = env_type
@@ -252,7 +252,7 @@ class AC(nn.Module):
             self.linear_num_block_pi = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
                 ReLU(inplace=True), 
-                Linear(in_features=128, out_features=num_class, bias=True)).to(self.device)
+                Linear(in_features=128, out_features=class_num, bias=True)).to(self.device)
             
             self.linear_num_block_v = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
@@ -274,7 +274,7 @@ class AC(nn.Module):
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
             xb = xb.view(xb.size(0), -1) # -> (batch_size, 256*11*11)
-            xb = self.linear_num_block_pi(xb) # -> (batch_size, num_class)
+            xb = self.linear_num_block_pi(xb) # -> (batch_size, class_num)
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
             xb = self.fc_pi(xb)
@@ -351,7 +351,7 @@ class AC(nn.Module):
 
 
 class DQN(nn.Module):
-    def __init__(self, num_class, env_type, device):
+    def __init__(self, class_num, env_type, device):
         super(DQN, self).__init__()
 
         self.env_type = env_type
@@ -377,7 +377,7 @@ class DQN(nn.Module):
             self.linear_num_block_pi = Sequential(
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
                 ReLU(inplace=True), 
-                Linear(in_features=128, out_features=num_class, bias=True)).to(self.device)
+                Linear(in_features=128, out_features=class_num, bias=True)).to(self.device)
             
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4, 128).to(self.device)
@@ -432,7 +432,7 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
 
 
 class CNN(nn.Module):
-    def __init__(self, num_class):
+    def __init__(self, class_num):
         super(CNN, self).__init__()
     
         self.cnn_num_block = Sequential(
@@ -454,12 +454,12 @@ class CNN(nn.Module):
         self.linear_num_block = Sequential(
             Linear(in_features=256*11*11, out_features=128, bias=True), 
             ReLU(inplace=True), 
-            Linear(in_features=128, out_features=num_class, bias=True))
+            Linear(in_features=128, out_features=class_num, bias=True))
 
     def forward(self, xb):
         xb = torch.unsqueeze(xb, 1) #(batch_size, h, w) -> (batch_size, 1, h, w)
         xb = self.cnn_num_block(xb)
         xb = xb.view(xb.size(0), -1) 
-        xb = self.linear_num_block(xb) # -> (batch_size, num_class)
+        xb = self.linear_num_block(xb) # -> (batch_size, class_num)
         out = xb
         return out
