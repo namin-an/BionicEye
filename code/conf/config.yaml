@@ -1,6 +1,6 @@
 defaults:
   - environment: Bioniceye # Bioniceye or CartPole-v1
-  - algorithm: PPO
+  - algorithm: DQN # PPO or REINFORCE or AC or DQN
 
 server:
   ip: "127.0.0.1"
@@ -26,7 +26,7 @@ reinforcement:
 
   training:
     gamma: 0.99
-    learning_rate: 0.0005
+    learning_rate: 0.00001
     render: False
     print_interval: 20
 
