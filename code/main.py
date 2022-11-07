@@ -46,10 +46,13 @@ def main(cfg: DictConfig):
         model_type = cfg.algorithm.name
         episode_num = cfg.environment.episode_num
         print_interval = cfg.reinforcement.training.print_interval
-        learning_rate = cfg.reinforcement.training.learning_rate
+        learning_rate = cfg.environment.learning_rate
         gamma = cfg.reinforcement.training.gamma
         batch_size = cfg.environment.batch_size
         render = cfg.reinforcement.training.render
+        os.makedirs(f"{cfg.output_dir}")
+        checkpoint_file = os.path.join(cfg.output_dir, f'{env_type}_{model_type}.pth')
+        correctness_file = os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv')
 
         # Specify algorithm
         if model_type == 'PPO':
@@ -60,24 +63,24 @@ def main(cfg: DictConfig):
             argv = []
 
         # Perform experiment
-        exp = ExperimentRL(image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, argv)
+        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, argv)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
-            model, train_returns = exp.train()
+            train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
-            print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 60 : .2f} (minutes)")
+            print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
             print(f"Peak Memory: {memory[-1]} [byte] or {memory[-1] / (1e6) : .2f} [mb]")
             tracemalloc.stop()
         else:
-            model, train_returns = exp.train()
+            train_returns, correctness = exp.train()
 
-        # Save the information
+        # Save the final information
         if cfg.save_info:
-            os.makedirs(f"{cfg.output_dir}")
-            torch.save(model.state_dict(), os.path.join(cfg.output_dir, f'{env_type}_{model_type}.pth'))
             train_returns_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in train_returns.items()]))
             train_returns_df.to_csv(os.path.join(cfg.output_dir, f'TrainReturns_{env_type}_{model_type}.csv'))
+            correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
+            correctness_df.to_csv(os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv'))
 
     if cfg.train == 'SL':
         # Define local variables
