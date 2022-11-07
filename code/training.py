@@ -1,11 +1,10 @@
 from tqdm import tqdm
+import pandas as pd
 import torch
 from torch.distributions import Categorical
 from torch.utils.data import DataLoader, random_split
 import gym
 
-# import sys
-# sys.path.append('/Users/naminan/Development/Project/code')
 from bioniceye.bioniceye.envs.bioniceye_env_v0 import BionicEyeEnv_v0
 from dataloader.kface16000 import KFaceDataLoader
 from models import PPO, Policy, AC, DQN, train_DQN, CNN
@@ -14,8 +13,10 @@ from utils.early_stop import EarlyStopping
 
 
 class ExperimentRL():
-    def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, *argv):
+    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, *argv):
 
+        self.checkpoint_file = checkpoint_file
+        self.correctness_file = correctness_file
         self.env_type = env_type
         self.model_type = model_type
         self.episode_num = episode_num
@@ -51,6 +52,7 @@ class ExperimentRL():
     def train(self):
         train_returns = {i:[] for i in range(self.episode_num)} 
         train_score = 0.0
+        correctness = {i:[] for i in range(self.episode_num)} 
 
         for e in tqdm(range(self.episode_num)):
             if self.env_type == 'Bioniceye':
@@ -67,22 +69,24 @@ class ExperimentRL():
                     if self.model_type == 'PPO' or self.model_type == 'REINFORCE' or self.model_type == 'AC':
                         probs = self.model.forward_pi(torch.from_numpy(state).float())
                     elif self.model_type == 'DQN':
-                        epsilon = max(0.01, 0.08 - 0.01*(e/200)) #Linear annealing from 8% to 1%
+                        epsilon = max(0.01, 0.08 - 0.01*(e/200)) # Linear annealing from 8% to 1%
                         action = self.model.sample_action(torch.from_numpy(state).float(), epsilon)                   
                     
                     if self.model_type != 'DQN':
                         m = Categorical(probs) 
                         action = m.sample()
                         if self.env_type == 'Bioniceye':
-                            next_state, reward, done, _ = self.env.step(t, action.item())
+                            next_state, reward, done, info = self.env.step(t, action.item())
                         elif self.env_type == 'CartPole-v1':
                             next_state, reward, done, _ = self.env.step(action.item())
                     else:
                         if self.env_type == 'Bioniceye':
-                            next_state, reward, done, _ = self.env.step(t, action)
+                            next_state, reward, done, info = self.env.step(t, action)
                         elif self.env_type == 'CartPole-v1':
                             next_state, reward, done, _ = self.env.step(action)
+
                     train_returns[e].append(reward)
+                    correctness[e].append(info)
                     
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
@@ -111,16 +115,21 @@ class ExperimentRL():
                         self.env.render(state)
                     
                     train_score += reward
-
-                    if e == 0:
-                        best_model = self.model
-                    else:
-                        if sum(train_returns[e]) > sum(train_returns[e-1]):
-                            best_model = self.model
                             
                     if done:
                         break
             
+            if e == 0:
+                best_model = self.model
+                best_correctness = sum(correctness[0]) / len(correctness[0])
+            else:
+                if (sum(correctness[e]) / len(correctness[e])) > best_correctness:
+                    best_model = self.model
+                    best_correctness = sum(train_returns[e]) / len(correctness[e])
+                    torch.save(best_model.state_dict(), self.checkpoint_file)
+                    correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
+                    correctness_df.to_csv(self.correctness_file, mode='w+')
+
             # Train with collected transitions
             if self.model_type != 'DQN':
                 self.model.train_net()
@@ -139,7 +148,7 @@ class ExperimentRL():
         if self.render:
             self.env.close()
 
-        return best_model, train_returns
+        return train_returns, correctness
 
 
 class ExperimentSL():
@@ -175,7 +184,6 @@ class ExperimentSL():
                 images, labels = images.to(self.device), labels.to(self.device)
                 pred_probs_full = self.model(images)
                 loss = self.loss_fn(pred_probs_full, labels)
-                _, pred_labels = torch.max(pred_probs_full, dim=-1)
 
                 loss.backward()
                 self.optimizer.step()
