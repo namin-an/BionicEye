@@ -26,7 +26,6 @@ reinforcement:
 
   training:
     gamma: 0.99
-    learning_rate: 0.00001
     render: False
     print_interval: 20
 
