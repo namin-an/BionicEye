@@ -1,14 +1,10 @@
 
-import os
 import random
-from glob import glob
-from collections import deque
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import cv2 as cv
-from gym import Env, spaces
-import torch
+from gym import Env
 from torch.utils.data import DataLoader
 
 from dataloader.human720 import HumanDataLoader
@@ -51,16 +47,16 @@ class BionicEyeEnv_v0(Env):
       
       if (mach_pred == label) and (hum_pred == label):
         reward = 1
-        info = False
+        info = 1.0
       elif (mach_pred != label) and (hum_pred != label):
         reward = 0
-        info = True
+        info = 0.0
       elif (mach_pred == label) and (hum_pred != label):
         reward = 0
-        info = True
+        info = 1.0
       elif (mach_pred != label) and (hum_pred == label):
         reward = 0 
-        info = False
+        info = 0.0
       
       if t == self.trial_num - 1:
         done = True
