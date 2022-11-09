@@ -13,7 +13,7 @@ from utils.early_stop import EarlyStopping
 
 
 class ExperimentRL():
-    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, *argv):
+    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, *argv):
 
         self.checkpoint_file = checkpoint_file
         self.correctness_file = correctness_file
@@ -24,6 +24,7 @@ class ExperimentRL():
         self.gamma = gamma
         self.batch_size = batch_size
         self.render = render
+        self.pre_epoch_num = pre_epoch_num
 
         self.device = device
         if len(argv[0]) >= 1:
@@ -48,6 +49,27 @@ class ExperimentRL():
             self.model_target.load_state_dict(self.model.state_dict())
             self.buffer = ReplayBuffer()
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        
+        # Load datasets for pretraining
+        Dataset = KFaceDataLoader(pretrain_dir, data_path, None, class_num, 'train', 1000)
+        self.train_loader = DataLoader(Dataset, batch_size=self.batch_size, num_workers=0, pin_memory=True, shuffle=True)
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+    
+    def pretrain(self):
+        for e in tqdm(range(self.pre_epoch_num)):
+
+            self.model.train()
+            for (images, labels) in tqdm(self.train_loader, leave=False):
+                images, labels = images.to(self.device), labels.to(self.device)
+                pred_probs_full = self.model(images, pretrain=True)
+                loss = self.loss_fn(pred_probs_full, labels)
+
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
+            print(f"EPOCH: {e} THE LAST LOSS: {loss : .2f}")
+
 
     def train(self):
         train_returns = {i:[] for i in range(self.episode_num)} 
@@ -152,7 +174,7 @@ class ExperimentRL():
 
 
 class ExperimentSL():
-    def __init__(self, image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, seed, model_file_path, device):
+    def __init__(self, image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, train_num, model_file_path, device):
 
         self.epoch_num = epoch_num
         self.print_interval = print_interval
@@ -160,7 +182,7 @@ class ExperimentSL():
         self.device = device
 
         # Prepare dataloader
-        KFaceDataset = KFaceDataLoader(image_dir, data_path, None, class_num, 'train', seed)
+        KFaceDataset = KFaceDataLoader(image_dir, data_path, None, class_num, 'train', train_num)
         total_size = len(KFaceDataset)
         train_size = int(total_size*0.8)
         trainDataset, validDataset = random_split(KFaceDataset, [train_size, total_size - train_size])
@@ -180,7 +202,7 @@ class ExperimentSL():
 
             # Train
             self.model.train()
-            for i, (images, labels) in tqdm(enumerate(self.train_loader), leave=False):
+            for (images, labels) in tqdm(self.train_loader, leave=False):
                 images, labels = images.to(self.device), labels.to(self.device)
                 pred_probs_full = self.model(images)
                 loss = self.loss_fn(pred_probs_full, labels)
@@ -193,7 +215,7 @@ class ExperimentSL():
             # Validate
             self.model.eval()
             with torch.no_grad():
-                for i, (images, labels) in tqdm(enumerate(self.valid_loader), leave=False):
+                for (images, labels) in tqdm(self.valid_loader, leave=False):
                     images, labels = images.to(self.device), labels.to(self.device)
                     pred_probs_full = self.model(images)
                     loss = self.loss_fn(pred_probs_full, labels)
