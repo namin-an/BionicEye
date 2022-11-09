@@ -384,10 +384,14 @@ class DQN(nn.Module):
             self.fc2 = nn.Linear(128, 128).to(self.device)
             self.fc3 = nn.Linear(128, 2).to(self.device)
         
-    def forward(self, xb):
+    def forward(self, xb, **kwargs):
         xb = xb.to(self.device)
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+        try:
+            if kwargs['pretrain']:
+                xb = torch.unsqueeze(xb, 1)
+        except:
+            if len(xb.shape) == 3:
+                xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
         
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb)
