@@ -3,7 +3,6 @@ from tqdm import tqdm
 from glob import glob
 import numpy as np
 import pandas as pd
-from collections import deque
 import cv2 as cv
 
 
@@ -23,7 +22,7 @@ class HumanDataLoader():
             self.sel_ppl = [499, 500, 502] + list(range(503, 509)) + list(range(602, 607)) + list(range(608, 612)) # 18 subjects
        
         # FOR THE HUMAN PREDICTIONS
-        self.preds = deque()
+        self.preds = []
         n = 9
         for i in tqdm(range(1, 80*n+1, 80), leave=False):
             j = i+79 
@@ -38,6 +37,7 @@ class HumanDataLoader():
                 temp_preds = temp_df.iloc[:, n].values.astype(str).astype(float).astype(int)
                 temp_pred = np.bincount(temp_preds).argmax() 
                 self.preds.append(temp_pred)
+        self.preds = [pred for (i, pred) in enumerate(self.preds) if int(i) in self.question_df['Trial'].values]
         
         assert len(self.labels) == len(self.preds)
     
