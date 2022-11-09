@@ -50,6 +50,8 @@ def main(cfg: DictConfig):
         gamma = cfg.reinforcement.training.gamma
         batch_size = cfg.environment.batch_size
         render = cfg.reinforcement.training.render
+        pretrain_dir = f"{orig_cwd}\{cfg.reinforcement.directory.pretrain_dir}"
+        pre_epoch_num = cfg.reinforcement.training.pre_epoch_num
         os.makedirs(f"{cfg.output_dir}")
         checkpoint_file = os.path.join(cfg.output_dir, f'{env_type}_{model_type}.pth')
         correctness_file = os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv')
@@ -63,10 +65,11 @@ def main(cfg: DictConfig):
             argv = []
 
         # Perform experiment
-        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, device, argv)
+        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, argv)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
+            exp.pretrain()
             train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
             print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
@@ -93,13 +96,13 @@ def main(cfg: DictConfig):
         print_interval = cfg.supervised.training.print_interval
         learning_rate = cfg.supervised.training.learning_rate
         batch_size = cfg.supervised.training.batch_size
-        seed = cfg.supervised.training.seed
+        train_num = cfg.supervised.training.train_num
 
         os.makedirs(f"{cfg.output_dir}")
         model_file_path = os.path.join(cfg.output_dir, f'CNN.pth')
 
         # Perform experiment
-        exp = ExperimentSL(image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, seed, model_file_path, device)
+        exp = ExperimentSL(image_dir, data_path, class_num, epoch_num, print_interval, learning_rate, batch_size, model_file_path, train_num, device)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
