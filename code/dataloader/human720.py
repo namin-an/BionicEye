@@ -37,7 +37,9 @@ class HumanDataLoader():
                 temp_preds = temp_df.iloc[:, n].values.astype(str).astype(float).astype(int)
                 temp_pred = np.bincount(temp_preds).argmax() 
                 self.preds.append(temp_pred)
-        self.preds = [pred for (i, pred) in enumerate(self.preds) if int(i) in self.question_df['Trial'].values]
+        
+        if os.path.basename(label_path) != '211105_QAs_for_Set0_CNN_SVC_4classes_partial.csv':
+            self.preds = [pred for (i, pred) in enumerate(self.preds) if int(i) in self.question_df['Trial'].values]
         
         assert len(self.labels) == len(self.preds)
     
