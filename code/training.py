@@ -48,7 +48,7 @@ class ExperimentRL():
             self.model_target = DQN(class_num, self.env_type, self.device)
             self.model_target.load_state_dict(self.model.state_dict())
             self.buffer = ReplayBuffer()
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         
         # Load datasets for pretraining
         Dataset = KFaceDataLoader(pretrain_dir, data_path, None, class_num, 'train', 1000)
@@ -61,7 +61,10 @@ class ExperimentRL():
             self.model.train()
             for (images, labels) in tqdm(self.train_loader, leave=False):
                 images, labels = images.to(self.device), labels.to(self.device)
-                pred_probs_full = self.model(images, pretrain=True)
+                if self.model_type == 'DQN':
+                    pred_probs_full = self.model(images, pretrain=True)
+                elif self.model_type == 'PPO':
+                    pred_probs_full = self.model.forward_pi(images, pretrain=True)
                 loss = self.loss_fn(pred_probs_full, labels)
 
                 loss.backward()
