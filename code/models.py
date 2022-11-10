@@ -54,11 +54,16 @@ class PPO(nn.Module):
             self.fc_v  = Linear(256,1).to(self.device)
         
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=10, min_lr=1e-7)
 
-    def forward_pi(self, xb):
+    def forward_pi(self, xb, **kwargs):
         xb = xb.to(self.device)
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+        try:
+            if kwargs['pretrain']:
+                xb = torch.unsqueeze(xb, 1)
+        except:
+            if len(xb.shape) == 3:
+                xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
 
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
@@ -151,6 +156,8 @@ class PPO(nn.Module):
             self.optimizer.zero_grad()
             loss.mean().backward()
             self.optimizer.step()
+
+        self.scheduler.step(loss.mean())
 
 
 class Policy(nn.Module):
@@ -267,7 +274,7 @@ class AC(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward_pi(self, xb):
-        xb = xb.to(self.device)
+        xb = xb.to(self.device)     
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
         
