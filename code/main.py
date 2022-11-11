@@ -69,7 +69,7 @@ def main(cfg: DictConfig):
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
-            exp.pretrain()
+            # exp.pretrain()
             train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
             print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
