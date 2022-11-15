@@ -10,14 +10,10 @@ from torch.nn import Linear, ReLU, Sequential, Conv2d, MaxPool2d
 
 
 class PPO(nn.Module):
-    def __init__(self, class_num, env_type, learning_rate, gamma, lmbda, eps_clip, batch_size, device):
+    def __init__(self, class_num, env_type, device):
         super(PPO, self).__init__()
 
         self.env_type = env_type
-        self.gamma = gamma
-        self.lmbda = lmbda
-        self.eps_clip = eps_clip
-        self.batch_size = batch_size
         self.device = device
 
         self.data = []
@@ -48,15 +44,13 @@ class PPO(nn.Module):
                 Linear(in_features=256*11*11, out_features=128, bias=True), 
                 ReLU(inplace=True), 
                 Linear(in_features=128, out_features=1, bias=True)).to(self.device)
+
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4,256).to(self.device)
             self.fc_pi = Linear(256,2).to(self.device)
             self.fc_v  = Linear(256,1).to(self.device)
         
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=10, min_lr=1e-7)
-
-    def forward_pi(self, xb, **kwargs):
+    def forward(self, xb, **kwargs):
         xb = xb.to(self.device)
         try:
             if kwargs['pretrain']:
@@ -69,10 +63,16 @@ class PPO(nn.Module):
             xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
             xb = xb.view(xb.size(0), -1) # -> (batch_size, 256*11*11)
             xb = self.linear_num_block_pi(xb) # -> (batch_size, class_num)
+
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
             xb = self.fc_pi(xb)
-        out = F.softmax(xb, dim=-1) 
+        
+        try:
+            if kwargs['pretrain']:
+                out = xb
+        except:
+            out = F.softmax(xb, dim=-1) 
         return out
     
     def forward_v(self, xb):
@@ -122,46 +122,48 @@ class PPO(nn.Module):
         self.data = []
         return state, action, reward, next_state, prob_action, done_mask
 
-    def train_net(self):
-        full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask = self.concatenate_data()
-        if self.env_type == 'CartPole-v1':
-            state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
-            trial_range = range(10)
-        elif self.env_type == 'Bioniceye':
-            trial_range = range(0, full_state.shape[0], self.batch_size)
+def train_PPO(env_type, model, optimizer, scheduler, gamma, lmbda, eps_clip, batch_size, device):
+    full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask = model.concatenate_data()
+    if env_type == 'CartPole-v1':
+        state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
+        trial_range = range(10)
+    elif env_type == 'Bioniceye':
+        trial_range = range(0, full_state.shape[0], batch_size)
 
-        for i in tqdm(trial_range, leave=False):
-            if self.env_type == 'Bioniceye':
-                state, action, reward, next_state, prob_action, done_mask = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_prob_action[i:i+self.batch_size], full_done_mask[i:i+self.batch_size]
-            
-            td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
-            delta = td_target.to(self.device) - self.forward_v(state)
-            delta = delta.detach().cpu().numpy()
+    for i in tqdm(trial_range, leave=False):
+        if env_type == 'Bioniceye':
+            state, action, reward, next_state, prob_action, done_mask = full_state[i:i+batch_size], full_action[i:i+batch_size], full_reward[i:i+batch_size], full_next_state[i:i+batch_size], full_prob_action[i:i+batch_size], full_done_mask[i:i+batch_size]
+        
+        td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
+        delta = td_target.to(device) - model.forward_v(state)
+        delta = delta.detach().cpu().numpy()
 
-            adv_lst = []
-            adv = 0.0
-            for delta_t in tqdm(delta[::-1], leave=False):
-                adv = self.gamma * self.lmbda * adv + delta_t[0]
-                adv_lst.append([adv])
-            adv_lst.reverse()
-            adv = torch.tensor(adv_lst, dtype=torch.float).to(self.device)
+        adv_lst = []
+        adv = 0.0
+        for delta_t in tqdm(delta[::-1], leave=False):
+            adv = gamma * lmbda * adv + delta_t[0]
+            adv_lst.append([adv])
+        adv_lst.reverse()
+        adv = torch.tensor(adv_lst, dtype=torch.float).to(device)
 
-            pi = self.forward_pi(state)
-            pi_action = pi.gather(1, action.to(self.device))
-            ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(self.device))) # a / b == exp(log(a) - log(b))
-            surr1 = ratio * adv
-            surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 + self.eps_clip) * adv
-            loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(self.forward_v(state), td_target.detach())
-            
-            self.optimizer.zero_grad()
-            loss.mean().backward()
-            self.optimizer.step()
+        pi = model(state)
+        pi_action = pi.gather(1, action.to(device))
+        ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(device))) # a / b == exp(log(a) - log(b))
+        surr1 = ratio * adv
+        surr2 = torch.clamp(ratio, 1 - eps_clip, 1 + eps_clip) * adv
+        loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
+        
+        optimizer.zero_grad()
+        loss.mean().backward()
+        optimizer.step()
 
-        self.scheduler.step(loss.mean())
+        scheduler.step(loss.mean())
+
+    return model, optimizer, scheduler
 
 
 class Policy(nn.Module):
-    def __init__(self, class_num, env_type, learning_rate, gamma, device):
+    def __init__(self, class_num, env_type, gamma, device):
         super(Policy, self).__init__()
 
         self.env_type = env_type
@@ -195,10 +197,8 @@ class Policy(nn.Module):
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4,256).to(self.device)
             self.fc2 = Linear(256,2).to(self.device)
-    
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
-    def forward_pi(self, xb):
+    def forward(self, xb):
         xb = xb.to(self.device)
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) # (1, 1, 128, 128)
@@ -216,20 +216,22 @@ class Policy(nn.Module):
     def put_data(self, transition):
         self.data.append(transition)
     
-    def train_net(self):
+    def train_net(self, optimizer, scheduler):
         R = 0
-        self.optimizer.zero_grad()
+        optimizer.zero_grad()
         for (reward, prob) in tqdm(self.data[::-1], leave=False):
             R = reward + R * self.gamma
             loss = - torch.log(prob) * R
             loss.requires_grad_(True)
             loss.backward()
-        self.optimizer.step()
+        optimizer.step()
         self.data = []
+
+        return optimizer, scheduler
 
 
 class AC(nn.Module):
-    def __init__(self, class_num, env_type, learning_rate, gamma, batch_size, device):
+    def __init__(self, class_num, env_type, gamma, batch_size, device):
         super(AC, self).__init__()
 
         self.env_type = env_type
@@ -271,9 +273,7 @@ class AC(nn.Module):
             self.fc_pi = nn.Linear(256,2).to(self.device)
             self.fc_v = nn.Linear(256,1).to(self.device)
         
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-
-    def forward_pi(self, xb):
+    def forward(self, xb):
         xb = xb.to(self.device)     
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
@@ -333,7 +333,7 @@ class AC(nn.Module):
         self.data = []
         return state, action, reward, next_state, done_mask
 
-    def train_net(self):
+    def train_net(self, optimizer, scheduler):
         full_state, full_action, full_reward, full_next_state, full_done_mask = self.concatenate_data()
         if self.env_type == 'CartPole-v1':
             state, action, reward, next_state, done_mask = full_state, full_action, full_reward, full_next_state, full_done_mask
@@ -348,13 +348,15 @@ class AC(nn.Module):
             td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
             delta = td_target.to(self.device) - self.forward_v(state)
 
-            pi = self.forward_pi(state)
+            pi = self.forward(state)
             pi_action = pi.gather(1, action.to(self.device))
             loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(self.forward_v(state), td_target.detach())
 
-            self.optimizer.zero_grad()
+            optimizer.zero_grad()
             loss.mean().backward()
-            self.optimizer.step()
+            optimizer.step()
+        
+        return optimizer, scheduler
 
 
 class DQN(nn.Module):
@@ -404,6 +406,7 @@ class DQN(nn.Module):
             xb = self.cnn_num_block(xb)
             xb = xb.view(xb.size(0), -1) 
             xb = self.linear_num_block_pi(xb)
+
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
             xb = F.relu(self.fc2(xb))
