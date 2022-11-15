@@ -7,7 +7,7 @@ import gym
 
 from bioniceye.bioniceye.envs.bioniceye_env_v0 import BionicEyeEnv_v0
 from dataloader.kface16000 import KFaceDataLoader
-from models import PPO, Policy, AC, DQN, train_DQN, CNN
+from models import PPO, train_PPO, Policy, AC, DQN, train_DQN, CNN
 from utils.ReplayBuffer import ReplayBuffer
 from utils.early_stop import EarlyStopping
 
@@ -38,17 +38,18 @@ class ExperimentRL():
 
         # Prepare models
         if self.model_type == 'PPO':
-            self.model = PPO(class_num, self.env_type, learning_rate, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+            self.model = PPO(class_num, self.env_type, self.device)
         elif self.model_type == 'REINFORCE':
-            self.model = Policy(class_num, self.env_type, learning_rate, self.gamma, self.device)
+            self.model = Policy(class_num, self.env_type, self.gamma, self.device)
         elif self.model_type == 'AC':
-            self.model = AC(class_num, self.env_type, learning_rate, self.gamma, self.batch_size, self.device)
+            self.model = AC(class_num, self.env_type, self.gamma, self.batch_size, self.device)
         elif self.model_type == 'DQN':
             self.model = DQN(class_num, self.env_type, self.device)
             self.model_target = DQN(class_num, self.env_type, self.device)
             self.model_target.load_state_dict(self.model.state_dict())
             self.buffer = ReplayBuffer()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=1, min_lr=1e-5, verbose=True)
         
         # Load datasets for pretraining
         Dataset = KFaceDataLoader(pretrain_dir, data_path, None, class_num, 'train', 1000)
@@ -61,10 +62,7 @@ class ExperimentRL():
             self.model.train()
             for (images, labels) in tqdm(self.train_loader, leave=False):
                 images, labels = images.to(self.device), labels.to(self.device)
-                if self.model_type == 'DQN':
-                    pred_probs_full = self.model(images, pretrain=True)
-                elif self.model_type == 'PPO':
-                    pred_probs_full = self.model.forward_pi(images, pretrain=True)
+                pred_probs_full = self.model(images, pretrain=True)
                 loss = self.loss_fn(pred_probs_full, labels)
 
                 loss.backward()
@@ -92,7 +90,7 @@ class ExperimentRL():
                 self.model.train()
                 for t in tqdm(range(trial_num), leave=False):
                     if self.model_type == 'PPO' or self.model_type == 'REINFORCE' or self.model_type == 'AC':
-                        probs = self.model.forward_pi(torch.from_numpy(state).float())
+                        probs = self.model(torch.from_numpy(state).float())
                     elif self.model_type == 'DQN':
                         epsilon = max(0.01, 0.08 - 0.01*(e/200)) # Linear annealing from 8% to 1%
                         action = self.model.sample_action(torch.from_numpy(state).float(), epsilon)                   
@@ -156,9 +154,9 @@ class ExperimentRL():
                     correctness_df.to_csv(self.correctness_file, mode='w+')
 
             # Train with collected transitions
-            if self.model_type != 'DQN':
-                self.model.train_net()
-            else:
+            if self.model_type == 'PPO':
+                self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+            elif self.model_type == 'DQN':
                 if self.buffer.size() > 128:
                     self.model, self.model_target, self.optimizer = train_DQN(self.env_type, self.model, self.model_target, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
 
