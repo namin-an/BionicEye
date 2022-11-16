@@ -109,7 +109,8 @@ class ExperimentRL():
                             next_state, reward, done, _ = self.env.step(action)
 
                     train_returns[e].append(reward)
-                    correctness[e].append(info)
+                    if self.env_type == 'Bioniceye':
+                        correctness[e].append(info)
                     
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
@@ -142,16 +143,17 @@ class ExperimentRL():
                     if done:
                         break
             
-            if e == 0:
-                best_model = self.model
-                best_correctness = sum(correctness[0]) / len(correctness[0])
-            else:
-                if (sum(correctness[e]) / len(correctness[e])) > best_correctness:
+            if self.env_type == 'Bioniceye':
+                if e == 0:
                     best_model = self.model
-                    best_correctness = sum(train_returns[e]) / len(correctness[e])
-                    torch.save(best_model.state_dict(), self.checkpoint_file)
-                    correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
-                    correctness_df.to_csv(self.correctness_file, mode='w+')
+                    best_correctness = sum(correctness[0]) / len(correctness[0])
+                else:
+                    if (sum(correctness[e]) / len(correctness[e])) > best_correctness:
+                        best_model = self.model
+                        torch.save(best_model.state_dict(), self.checkpoint_file)
+                        best_correctness = sum(train_returns[e]) / len(correctness[e])
+                        correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
+                        correctness_df.to_csv(self.correctness_file, mode='w+')
 
             # Train with collected transitions
             if self.model_type == 'PPO':
