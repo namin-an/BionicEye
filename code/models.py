@@ -156,8 +156,9 @@ def train_PPO(env_type, model, optimizer, scheduler, gamma, lmbda, eps_clip, bat
         optimizer.zero_grad()
         loss.mean().backward()
         optimizer.step()
-
-        scheduler.step(loss.mean())
+        
+        if env_type == 'Bioniceye':
+            scheduler.step(loss.mean())
 
     return model, optimizer, scheduler
 
@@ -429,7 +430,7 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
     elif env_type == 'Bioniceye':
         trial_range = range(0, memory.size(), batch_size)
 
-    for i in tqdm(trial_range, leave=False):
+    for _ in tqdm(trial_range, leave=False):
         state, action, reward, next_state, done_mask = memory.sample(batch_size)
 
         q_out = model(state)
