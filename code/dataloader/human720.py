@@ -1,4 +1,5 @@
 import os
+import random
 from tqdm import tqdm
 from glob import glob
 import numpy as np
@@ -20,7 +21,10 @@ class HumanDataLoader():
             self.sel_ppl = list(range(300, 309)) + list(range(400, 408)) + [611] # 18 subjects
         elif stim_type == 'elec':
             self.sel_ppl = [499, 500, 502] + list(range(503, 509)) + list(range(602, 607)) + list(range(608, 612)) # 18 subjects
-       
+        random.seed(42)
+        test_l = random.sample(self.sel_ppl, len(self.sel_ppl)//2)
+        self.sel_ppl = [per for per in self.sel_ppl if not per in test_l]
+
         # FOR THE HUMAN PREDICTIONS
         self.preds = []
         n = 9
