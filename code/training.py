@@ -7,13 +7,13 @@ import gym
 
 from bioniceye.bioniceye.envs.bioniceye_env_v0 import BionicEyeEnv_v0
 from dataloader.kface16000 import KFaceDataLoader
-from models import PPO, train_PPO, Policy, AC, DQN, train_DQN, CNN
+from models import PPO, train_PPO, REINFORCE, train_REINFORCE, AC, train_AC, DQN, train_DQN, CNN
 from utils.ReplayBuffer import ReplayBuffer
 from utils.early_stop import EarlyStopping
 
 
 class ExperimentRL():
-    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, *argv):
+    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, *argv):
 
         self.checkpoint_file = checkpoint_file
         self.correctness_file = correctness_file
@@ -40,14 +40,14 @@ class ExperimentRL():
         if self.model_type == 'PPO':
             self.model = PPO(class_num, self.env_type, self.device)
         elif self.model_type == 'REINFORCE':
-            self.model = Policy(class_num, self.env_type, self.gamma, self.device)
+            self.model = REINFORCE(class_num, self.env_type, self.gamma, self.device)
         elif self.model_type == 'AC':
             self.model = AC(class_num, self.env_type, self.gamma, self.batch_size, self.device)
         elif self.model_type == 'DQN':
             self.model = DQN(class_num, self.env_type, self.device)
             self.model_target = DQN(class_num, self.env_type, self.device)
             self.model_target.load_state_dict(self.model.state_dict())
-            self.buffer = ReplayBuffer()
+        self.buffer = ReplayBuffer(self.model_type, size_limit)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=1, min_lr=1e-5, verbose=True)
         
@@ -114,19 +114,19 @@ class ExperimentRL():
                     
                     if self.model_type == 'PPO':
                         if self.env_type == 'Bioniceye':
-                            self.model.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, class_num)
+                            self.buffer.put_data((state, action, reward, next_state, probs[0][action].item(), done)) # probs: (1, class_num)
                         elif self.env_type == 'CartPole-v1':
-                            self.model.put_data((state, action, reward/100., next_state, probs[action].item(), done))
+                            self.buffer.put_data((state, action, reward/100., next_state, probs[action].item(), done))
                     elif self.model_type == 'REINFORCE':
                         if self.env_type == 'Bioniceye':
-                            self.model.put_data((reward, probs[0][action]))
+                            self.buffer.put_data((reward, probs[0][action]))
                         elif self.env_type == 'CartPole-v1':
-                            self.model.put_data((reward/100., probs[action]))
+                            self.buffer.put_data((reward/100., probs[action]))
                     elif self.model_type == 'AC':
                         if self.env_type == 'Bioniceye':
-                            self.model.put_data((state, action, reward, next_state, done))
+                            self.buffer.put_data((state, action, reward, next_state, done))
                         elif self.env_type == 'CartPole-v1':
-                            self.model.put_data((state, action, reward/100., next_state, done))
+                            self.buffer.put_data((state, action, reward/100., next_state, done))
                     elif self.model_type == 'DQN':
                         if self.env_type == 'Bioniceye':
                             self.buffer.put_data((state, action, reward, next_state, done))
@@ -157,7 +157,14 @@ class ExperimentRL():
 
             # Train with collected transitions
             if self.model_type == 'PPO':
-                self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+                if self.buffer.size() > 128:
+                    self.model, self.optimizer = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+            elif self.model_type == 'REINFORCE':
+                if self.buffer.size() > 128:
+                    self.model, self.optimizer = train_REINFORCE(self.buffer, self.optimizer)
+            elif self.model_type == 'AC':
+                if self.buffer.size() > 128:
+                    self.model, self.optimizer = train_AC(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
             elif self.model_type == 'DQN':
                 if self.buffer.size() > 128:
                     self.model, self.model_target, self.optimizer = train_DQN(self.env_type, self.model, self.model_target, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
