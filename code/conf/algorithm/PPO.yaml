@@ -5,3 +5,4 @@ gamma: 0.98
 lmbda: 0.95
 eps_clip: 0.1
 batch_size: 16
+size_limit: 50000 # 720

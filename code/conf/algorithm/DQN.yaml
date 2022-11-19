@@ -3,3 +3,4 @@ name: DQN
 
 gamma: 0.98
 batch_size: 16
+size_limit: 50000

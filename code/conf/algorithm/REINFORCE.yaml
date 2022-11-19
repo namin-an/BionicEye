@@ -2,3 +2,4 @@
 name: REINFORCE
 
 gamma: 0.98
+size_limit: 720
