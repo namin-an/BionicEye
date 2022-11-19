@@ -45,6 +45,7 @@ def main(cfg: DictConfig):
         env_type = cfg.environment.name
         model_type = cfg.algorithm.name
         episode_num = cfg.environment.episode_num
+        size_limit = cfg.algorithm.size_limit
         print_interval = cfg.reinforcement.training.print_interval
         learning_rate = cfg.environment.learning_rate
         gamma = cfg.reinforcement.training.gamma
@@ -65,12 +66,12 @@ def main(cfg: DictConfig):
             argv = []
 
         # Perform experiment
-        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, argv)
+        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, argv)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
-            if env_type == 'Bioniceye':
-                exp.pretrain()
+            # if env_type == 'Bioniceye':
+            #     exp.pretrain()
             train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
             print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
