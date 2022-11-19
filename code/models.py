@@ -1,8 +1,5 @@
 import random
-from sklearn.model_selection import learning_curve
 from tqdm import tqdm
-import numpy as np
-from collections import deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,8 +12,6 @@ class PPO(nn.Module):
 
         self.env_type = env_type
         self.device = device
-
-        self.data = []
     
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
@@ -57,12 +52,12 @@ class PPO(nn.Module):
                 xb = torch.unsqueeze(xb, 1)
         except:
             if len(xb.shape) == 3:
-                xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+                xb = torch.unsqueeze(xb, 0)
 
         if self.env_type == 'Bioniceye':
-            xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
-            xb = xb.view(xb.size(0), -1) # -> (batch_size, 256*11*11)
-            xb = self.linear_num_block_pi(xb) # -> (batch_size, class_num)
+            xb = self.cnn_num_block(xb) 
+            xb = xb.view(xb.size(0), -1) 
+            xb = self.linear_num_block_pi(xb)
 
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
@@ -78,7 +73,7 @@ class PPO(nn.Module):
     def forward_v(self, xb):
         xb = xb.to(self.device)
         if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+            xb = torch.unsqueeze(xb, 0)
 
         if self.env_type == 'Bioniceye':   
             xb = self.cnn_num_block(xb)
@@ -88,52 +83,17 @@ class PPO(nn.Module):
             xb = F.relu(self.fc1(xb))
             xb = self.fc_v(xb)
         out = xb 
-        return out
-    
-    def put_data(self, transition):
-        self.data.append(transition)
-    
-    def concatenate_data(self):
-        a_lst, r_lst, prob_a_lst, done_lst = [], [], [], []
-        
-        for (i, transition) in tqdm(enumerate(self.data), leave=False):
-            s, a, r, s_prime, prob_a, done = transition          
-            s, s_prime = np.expand_dims(s, 0), np.expand_dims(s_prime, 0) # batch
+        return out 
 
-            if i == 0:
-                state = s
-                next_state = s_prime
-            else:
-                state = np.concatenate((state, s), axis=0)
-                next_state = np.concatenate((next_state, s_prime), axis=0)
-            state, next_state = torch.from_numpy(state), torch.from_numpy(next_state)
-
-            a_lst.append([a])
-            r_lst.append([r])
-            prob_a_lst.append([prob_a])
-            done_mask = 0 if done else 1
-            done_lst.append([done_mask])
-            action, reward, prob_action, done_mask = \
-            torch.tensor(a_lst), \
-                torch.tensor(r_lst), \
-                        torch.tensor(prob_a_lst), \
-                            torch.tensor(done_lst, dtype=torch.float)       
-
-        self.data = []
-        return state, action, reward, next_state, prob_action, done_mask
-
-def train_PPO(env_type, model, optimizer, scheduler, gamma, lmbda, eps_clip, batch_size, device):
-    full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask = model.concatenate_data()
+def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_size, device):
     if env_type == 'CartPole-v1':
-        state, action, reward, next_state, prob_action, done_mask = full_state, full_action, full_reward, full_next_state, full_prob_action, full_done_mask
         trial_range = range(10)
     elif env_type == 'Bioniceye':
-        trial_range = range(0, full_state.shape[0], batch_size)
+        trial_range = range(0, memory.size(), batch_size)
 
-    for i in tqdm(trial_range, leave=False):
-        if env_type == 'Bioniceye':
-            state, action, reward, next_state, prob_action, done_mask = full_state[i:i+batch_size], full_action[i:i+batch_size], full_reward[i:i+batch_size], full_next_state[i:i+batch_size], full_prob_action[i:i+batch_size], full_done_mask[i:i+batch_size]
-        
+    for _ in tqdm(trial_range, leave=False):
+        state, action, reward, next_state, prob_action, done_mask = memory.sample(batch_size)
+
         td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
         delta = td_target.to(device) - model.forward_v(state)
         delta = delta.detach().cpu().numpy()
@@ -148,7 +108,7 @@ def train_PPO(env_type, model, optimizer, scheduler, gamma, lmbda, eps_clip, bat
 
         pi = model(state)
         pi_action = pi.gather(1, action.to(device))
-        ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(device))) # a / b == exp(log(a) - log(b))
+        ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(device))) 
         surr1 = ratio * adv
         surr2 = torch.clamp(ratio, 1 - eps_clip, 1 + eps_clip) * adv
         loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
@@ -156,23 +116,18 @@ def train_PPO(env_type, model, optimizer, scheduler, gamma, lmbda, eps_clip, bat
         optimizer.zero_grad()
         loss.mean().backward()
         optimizer.step()
-        
-        if env_type == 'Bioniceye':
-            scheduler.step(loss.mean())
 
-    return model, optimizer, scheduler
+    return model, optimizer 
 
 
-class Policy(nn.Module):
+class REINFORCE(nn.Module):
     def __init__(self, class_num, env_type, gamma, device):
-        super(Policy, self).__init__()
+        super(REINFORCE, self).__init__()
 
         self.env_type = env_type
         self.gamma = gamma
         self.device = device
-        
-        self.data = []
-        
+                
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
                 Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
@@ -202,7 +157,7 @@ class Policy(nn.Module):
     def forward(self, xb):
         xb = xb.to(self.device)
         if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # (1, 1, 128, 128)
+            xb = torch.unsqueeze(xb, 0) 
 
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb)
@@ -214,21 +169,17 @@ class Policy(nn.Module):
         out = F.softmax(xb, dim=-1) 
         return out
     
-    def put_data(self, transition):
-        self.data.append(transition)
-    
-    def train_net(self, optimizer, scheduler):
-        R = 0
-        optimizer.zero_grad()
-        for (reward, prob) in tqdm(self.data[::-1], leave=False):
-            R = reward + R * self.gamma
-            loss = - torch.log(prob) * R
-            loss.requires_grad_(True)
-            loss.backward()
-        optimizer.step()
-        self.data = []
+def train_REINFORCE(self, memory, optimizer): 
+    R = 0
+    optimizer.zero_grad()
+    for (reward, prob) in tqdm(memory[::-1], leave=False):
+        R = reward + R * self.gamma
+        loss = - torch.log(prob) * R
+        loss.requires_grad_(True)
+        loss.backward()
+    optimizer.step()
 
-        return optimizer, scheduler
+    return optimizer
 
 
 class AC(nn.Module):
@@ -239,8 +190,6 @@ class AC(nn.Module):
         self.gamma = gamma
         self.batch_size = batch_size
         self.device = device
-
-        self.data = []
         
         if self.env_type == 'Bioniceye':
             self.cnn_num_block = Sequential(
@@ -277,12 +226,12 @@ class AC(nn.Module):
     def forward(self, xb):
         xb = xb.to(self.device)     
         if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+            xb = torch.unsqueeze(xb, 0) 
         
         if self.env_type == 'Bioniceye':
-            xb = self.cnn_num_block(xb) # -> (batch_size, 256, 11, 11)
-            xb = xb.view(xb.size(0), -1) # -> (batch_size, 256*11*11)
-            xb = self.linear_num_block_pi(xb) # -> (batch_size, class_num)
+            xb = self.cnn_num_block(xb) 
+            xb = xb.view(xb.size(0), -1) 
+            xb = self.linear_num_block_pi(xb) 
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
             xb = self.fc_pi(xb)
@@ -292,7 +241,7 @@ class AC(nn.Module):
     def forward_v(self, xb):
         xb = xb.to(self.device)
         if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+            xb = torch.unsqueeze(xb, 0)
 
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb)
@@ -303,61 +252,28 @@ class AC(nn.Module):
             xb = self.fc_v(xb)
         out = xb 
         return out
+
+def train_AC(env_type, self, model, memory, optimizer, gamma, batch_size, device):
+    if env_type == 'CartPole-v1':
+        trial_range = range(10)
+    elif env_type == 'Bioniceye':
+        trial_range = range(0, memory.size(), batch_size)
+
+    for i in tqdm(trial_range, leave=False):
+        state, action, reward, next_state, done_mask = memory.sample(batch_size)
+
+        td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
+        delta = td_target.to(device) - model.forward_v(state)
+
+        pi = model(state)
+        pi_action = pi.gather(1, action.to(device))
+        loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
+
+        optimizer.zero_grad()
+        loss.mean().backward()
+        optimizer.step()
     
-    def put_data(self, transition):
-        self.data.append(transition)
-    
-    def concatenate_data(self):
-        a_lst, r_lst, done_lst = [], [], []
-        
-        for (i, transition) in tqdm(enumerate(self.data), leave=False):
-            s, a, r, s_prime, done = transition
-            s, s_prime = np.expand_dims(s, 0), np.expand_dims(s_prime, 0) # batch
-
-            if i == 0:
-                state = s
-                next_state = s_prime
-            else:
-                state = np.concatenate((state, s), axis=0)
-                next_state = np.concatenate((next_state, s_prime), axis=0)
-
-            a_lst.append([a])
-            r_lst.append([r])
-            done_mask = 0 if done else 1
-            done_lst.append([done_mask])
-
-            action, reward, done_mask = torch.tensor(a_lst), \
-                torch.tensor(r_lst), \
-                    torch.tensor(done_lst)
-            state, next_state = torch.from_numpy(state), torch.from_numpy(next_state)
-
-        self.data = []
-        return state, action, reward, next_state, done_mask
-
-    def train_net(self, optimizer, scheduler):
-        full_state, full_action, full_reward, full_next_state, full_done_mask = self.concatenate_data()
-        if self.env_type == 'CartPole-v1':
-            state, action, reward, next_state, done_mask = full_state, full_action, full_reward, full_next_state, full_done_mask
-            trial_range = range(10)
-        elif self.env_type == 'Bioniceye':
-            trial_range = range(0, full_state.shape[0], self.batch_size)
-
-        for i in tqdm(trial_range, leave=False):
-            if self.env_type == 'Bioniceye':
-                state, action, reward, next_state, done_mask = full_state[i:i+self.batch_size], full_action[i:i+self.batch_size], full_reward[i:i+self.batch_size], full_next_state[i:i+self.batch_size], full_done_mask[i:i+self.batch_size]
-
-            td_target = reward.to(self.device) + self.gamma * self.forward_v(next_state) * done_mask.to(self.device)
-            delta = td_target.to(self.device) - self.forward_v(state)
-
-            pi = self.forward(state)
-            pi_action = pi.gather(1, action.to(self.device))
-            loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(self.forward_v(state), td_target.detach())
-
-            optimizer.zero_grad()
-            loss.mean().backward()
-            optimizer.step()
-        
-        return optimizer, scheduler
+    return optimizer
 
 
 class DQN(nn.Module):
@@ -401,7 +317,7 @@ class DQN(nn.Module):
                 xb = torch.unsqueeze(xb, 1)
         except:
             if len(xb.shape) == 3:
-                xb = torch.unsqueeze(xb, 0) # -> (1, 1, 128, 128)
+                xb = torch.unsqueeze(xb, 0) 
         
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb)
@@ -424,7 +340,6 @@ class DQN(nn.Module):
             return out.argmax().item()
     
 def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_size, device):
-
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
@@ -472,9 +387,9 @@ class CNN(nn.Module):
             Linear(in_features=128, out_features=class_num, bias=True))
 
     def forward(self, xb):
-        xb = torch.unsqueeze(xb, 1) #(batch_size, h, w) -> (batch_size, 1, h, w)
+        xb = torch.unsqueeze(xb, 1) 
         xb = self.cnn_num_block(xb)
         xb = xb.view(xb.size(0), -1) 
-        xb = self.linear_num_block(xb) # -> (batch_size, class_num)
+        xb = self.linear_num_block(xb)
         out = xb
         return out
