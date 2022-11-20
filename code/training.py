@@ -49,7 +49,7 @@ class ExperimentRL():
             self.model_target.load_state_dict(self.model.state_dict())
         self.buffer = ReplayBuffer(self.model_type, size_limit)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=1, min_lr=1e-5, verbose=True)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100, eta_min=0, verbose=True)
         
         # Load datasets for pretraining
         Dataset = KFaceDataLoader(pretrain_dir, data_path, None, class_num, 'train', 1000)
@@ -158,7 +158,7 @@ class ExperimentRL():
             # Train with collected transitions
             if self.model_type == 'PPO':
                 if self.buffer.size() > 128:
-                    self.model, self.optimizer = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+                    self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
             elif self.model_type == 'REINFORCE':
                 if self.buffer.size() > 128:
                     self.model, self.optimizer = train_REINFORCE(self.buffer, self.optimizer)
