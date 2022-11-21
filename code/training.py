@@ -77,8 +77,6 @@ class ExperimentRL():
         correctness = {i:[] for i in range(self.episode_num)} 
 
         for e in tqdm(range(self.episode_num)):
-            if self.model_type != DQN:
-                self.buffer = ReplayBuffer(self.model_type, self.size_limit)
             if self.env_type == 'Bioniceye':
                 state, trial_num = self.env.reset()
             elif self.env_type == 'CartPole-v1':
@@ -152,12 +150,12 @@ class ExperimentRL():
                         correctness_df.to_csv(self.correctness_file, mode='w+')
 
             # Train with collected transitions
-            if self.model_type == 'PPO':
-                self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
-            elif self.model_type == 'AC':
-                self.model, self.optimizer = train_AC(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
-            elif self.model_type == 'DQN':
-                if self.buffer.size() > 128:
+            if self.buffer.size() > 128:
+                if self.model_type == 'PPO':
+                    self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+                elif self.model_type == 'AC':
+                    self.model, self.optimizer = train_AC(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
+                elif self.model_type == 'DQN':
                     self.model, self.model_target, self.optimizer = train_DQN(self.env_type, self.model, self.model_target, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
 
             if e % self.print_interval == 0 and e != 0:
