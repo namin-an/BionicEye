@@ -123,68 +123,6 @@ def train_PPO(env_type, model, memory, optimizer, scheduler, gamma, lmbda, eps_c
     return model, optimizer, scheduler
 
 
-class REINFORCE(nn.Module):
-    def __init__(self, class_num, env_type, gamma, device):
-        super(REINFORCE, self).__init__()
-
-        self.env_type = env_type
-        self.gamma = gamma
-        self.device = device
-                
-        if self.env_type == 'Bioniceye':
-            self.cnn_num_block = Sequential(
-                Conv2d(in_channels=1, out_channels=32, kernel_size=7, stride=1, padding=0),
-                ReLU(inplace=True),
-                MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
-
-                Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=0),
-                ReLU(inplace=True),
-                MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
-
-                Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
-                ReLU(inplace=True),
-                MaxPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False),
-
-                Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=0),
-                ReLU(inplace=True)).to(self.device)
-                
-            self.linear_num_block_pi = Sequential(
-                Linear(in_features=256*11*11, out_features=128, bias=True), 
-                ReLU(inplace=True), 
-                Linear(in_features=128, out_features=class_num, bias=True)).to(self.device)  
-        
-        elif self.env_type == 'CartPole-v1':
-            self.fc1   = Linear(4,256).to(self.device)
-            self.fc2 = Linear(256,2).to(self.device)
-
-    def forward(self, xb):
-        xb = xb.to(self.device)
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) 
-
-        if self.env_type == 'Bioniceye':
-            xb = self.cnn_num_block(xb)
-            xb = xb.view(xb.size(0), -1) 
-            xb = self.linear_num_block_pi(xb)
-        elif self.env_type == 'CartPole-v1':
-            xb = F.relu(self.fc1(xb))
-            xb = self.fc2(xb)
-        out = F.softmax(xb, dim=-1) 
-        return out
-    
-def train_REINFORCE(self, memory, optimizer): 
-    R = 0
-    optimizer.zero_grad()
-    for (reward, prob) in tqdm(memory[::-1], leave=False):
-        R = reward + R * self.gamma
-        loss = - torch.log(prob) * R
-        loss.requires_grad_(True)
-        loss.backward()
-    optimizer.step()
-
-    return optimizer
-
-
 class AC(nn.Module):
     def __init__(self, class_num, env_type, gamma, batch_size, device):
         super(AC, self).__init__()
@@ -256,7 +194,7 @@ class AC(nn.Module):
         out = xb 
         return out
 
-def train_AC(env_type, self, model, memory, optimizer, gamma, batch_size, device):
+def train_AC(env_type, model, memory, optimizer, gamma, batch_size, device):
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
@@ -276,7 +214,7 @@ def train_AC(env_type, self, model, memory, optimizer, gamma, batch_size, device
         loss.mean().backward()
         optimizer.step()
     
-    return optimizer
+    return model, optimizer
 
 
 class DQN(nn.Module):
