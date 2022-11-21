@@ -152,7 +152,7 @@ class ExperimentRL():
             # Train with collected transitions
             if self.buffer.size() > 128:
                 if self.model_type == 'PPO':
-                    self.model, self.optimizer, self.scheduler = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.scheduler, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
+                    self.model, self.optimizer = train_PPO(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.lmbda, self.eps_clip, self.batch_size, self.device)
                 elif self.model_type == 'AC':
                     self.model, self.optimizer = train_AC(self.env_type, self.model, self.buffer, self.optimizer, self.gamma, self.batch_size, self.device)
                 elif self.model_type == 'DQN':
