@@ -89,7 +89,7 @@ def train_PPO(env_type, model, memory, optimizer, scheduler, gamma, lmbda, eps_c
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
-        trial_range = range(0, memory.size(), batch_size)
+        trial_range = range((memory.size()//batch_size) * 10)
 
     for _ in tqdm(trial_range, leave=False):
         state, action, reward, next_state, prob_action, done_mask = memory.sample(batch_size)
@@ -198,9 +198,9 @@ def train_AC(env_type, model, memory, optimizer, gamma, batch_size, device):
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
-        trial_range = range(0, memory.size(), batch_size)
+        trial_range = range((memory.size()//batch_size) * 10)
 
-    for i in tqdm(trial_range, leave=False):
+    for _ in tqdm(trial_range, leave=False):
         state, action, reward, next_state, done_mask = memory.sample(batch_size)
 
         td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
