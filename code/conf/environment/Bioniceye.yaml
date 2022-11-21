@@ -1,6 +1,5 @@
 # @package _group_
 name: Bioniceye
 
-episode_num: 1000
 batch_size: 16
-learning_rate: 1e-4
+learning_rate: 5e-5
