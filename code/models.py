@@ -85,7 +85,7 @@ class PPO(nn.Module):
         out = xb 
         return out 
 
-def train_PPO(env_type, model, memory, optimizer, scheduler, gamma, lmbda, eps_clip, batch_size, device):
+def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_size, device):
     if env_type == 'CartPole-v1':
         trial_range = range(10)
     elif env_type == 'Bioniceye':
@@ -117,10 +117,7 @@ def train_PPO(env_type, model, memory, optimizer, scheduler, gamma, lmbda, eps_c
         loss.mean().backward()
         optimizer.step()
 
-        if env_type == 'Bioniceye':
-            scheduler.step(loss.mean())
-
-    return model, optimizer, scheduler
+    return model, optimizer
 
 
 class AC(nn.Module):
