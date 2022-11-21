@@ -44,7 +44,7 @@ def main(cfg: DictConfig):
 
         env_type = cfg.environment.name
         model_type = cfg.algorithm.name
-        episode_num = cfg.environment.episode_num
+        episode_num = cfg.algorithm.episode_num
         size_limit = cfg.algorithm.size_limit
         print_interval = cfg.reinforcement.training.print_interval
         learning_rate = cfg.environment.learning_rate

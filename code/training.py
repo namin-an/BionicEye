@@ -89,7 +89,7 @@ class ExperimentRL():
                 self.model.train()
                 for t in tqdm(range(trial_num), leave=False):
                     if self.model_type == 'PPO' or self.model_type == 'AC':
-                        probs = self.model(torch.from_numpy(state).float())
+                        probs = self.model.forward_pi(torch.from_numpy(state).float())
                     elif self.model_type == 'DQN':
                         epsilon = max(0.01, 0.08 - 0.01*(e/200)) # Linear annealing from 8% to 1%
                         action = self.model.sample_action(torch.from_numpy(state).float(), epsilon)                   

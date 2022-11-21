@@ -45,7 +45,7 @@ class PPO(nn.Module):
             self.fc_pi = Linear(256,2).to(self.device)
             self.fc_v  = Linear(256,1).to(self.device)
         
-    def forward(self, xb, **kwargs):
+    def forward_pi(self, xb, **kwargs):
         xb = xb.to(self.device)
         try:
             if kwargs['pretrain']:
@@ -106,7 +106,7 @@ def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_
         adv_lst.reverse()
         adv = torch.tensor(adv_lst, dtype=torch.float).to(device)
 
-        pi = model(state)
+        pi = model.forward_pi(state)
         pi_action = pi.gather(1, action.to(device))
         ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(device))) 
         surr1 = ratio * adv
@@ -161,7 +161,7 @@ class AC(nn.Module):
             self.fc_pi = nn.Linear(256,2).to(self.device)
             self.fc_v = nn.Linear(256,1).to(self.device)
         
-    def forward(self, xb):
+    def forward_pi(self, xb):
         xb = xb.to(self.device)     
         if len(xb.shape) == 3:
             xb = torch.unsqueeze(xb, 0) 
@@ -203,7 +203,7 @@ def train_AC(env_type, model, memory, optimizer, gamma, batch_size, device):
         td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
         delta = td_target.to(device) - model.forward_v(state)
 
-        pi = model(state)
+        pi = model.forward_pi(state)
         pi_action = pi.gather(1, action.to(device))
         loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
 
