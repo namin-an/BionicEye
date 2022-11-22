@@ -61,7 +61,10 @@ class ExperimentRL():
             self.model.train()
             for (images, labels) in tqdm(self.train_loader, leave=False):
                 images, labels = images.to(self.device), labels.to(self.device)
-                pred_probs_full = self.model(images, pretrain=True)
+                if self.model_type == 'DQN':
+                    pred_probs_full = self.model(images, pretrain=True)
+                elif self.model_type == 'PPO' or self.model_type == 'AC':
+                    pred_probs_full, _ = self.model(images, pretrain=True)
                 loss = self.loss_fn(pred_probs_full, labels)
 
                 loss.backward()
@@ -89,7 +92,7 @@ class ExperimentRL():
                 self.model.train()
                 for t in tqdm(range(trial_num), leave=False):
                     if self.model_type == 'PPO' or self.model_type == 'AC':
-                        probs = self.model.forward_pi(torch.from_numpy(state).float())
+                        probs, _ = self.model(torch.from_numpy(state).float())
                     elif self.model_type == 'DQN':
                         epsilon = max(0.01, 0.08 - 0.01*(e/200)) # Linear annealing from 8% to 1%
                         action = self.model.sample_action(torch.from_numpy(state).float(), epsilon)                   
