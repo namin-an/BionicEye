@@ -44,8 +44,8 @@ class PPO(nn.Module):
             self.fc1   = Linear(4,256).to(self.device)
             self.fc_pi = Linear(256,2).to(self.device)
             self.fc_v  = Linear(256,1).to(self.device)
-        
-    def forward_pi(self, xb, **kwargs):
+    
+    def forward(self, xb, **kwargs):
         xb = xb.to(self.device)
         try:
             if kwargs['pretrain']:
@@ -53,37 +53,25 @@ class PPO(nn.Module):
         except:
             if len(xb.shape) == 3:
                 xb = torch.unsqueeze(xb, 0)
-
+        
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb) 
             xb = xb.view(xb.size(0), -1) 
-            xb = self.linear_num_block_pi(xb)
+            action_probs = self.linear_num_block_pi(xb)
+            state_values = self.linear_num_block_v(xb)
 
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
-            xb = self.fc_pi(xb)
+            action_probs = self.fc_pi(xb)
+            state_values = self.fc_v(xb)
         
         try:
             if kwargs['pretrain']:
-                out = xb
+                action_probs = action_probs
         except:
-            out = F.softmax(xb, dim=-1) 
-        return out
-    
-    def forward_v(self, xb):
-        xb = xb.to(self.device)
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0)
+            action_probs = F.softmax(action_probs, dim=-1)
 
-        if self.env_type == 'Bioniceye':   
-            xb = self.cnn_num_block(xb)
-            xb = xb.view(xb.size(0), -1) 
-            xb = self.linear_num_block_v(xb)
-        elif self.env_type == 'CartPole-v1':
-            xb = F.relu(self.fc1(xb))
-            xb = self.fc_v(xb)
-        out = xb 
-        return out 
+        return action_probs, state_values
 
 def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_size, device):
     if env_type == 'CartPole-v1':
@@ -94,8 +82,11 @@ def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_
     for _ in tqdm(trial_range, leave=False):
         state, action, reward, next_state, prob_action, done_mask = memory.sample(batch_size)
 
-        td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
-        delta = td_target.to(device) - model.forward_v(state)
+        pi, q = model(state)
+        _, q_prime = model(next_state)
+        
+        td_target = reward.to(device) + gamma * q_prime * done_mask.to(device)
+        delta = td_target.to(device) - q
         delta = delta.detach().cpu().numpy()
 
         adv_lst = []
@@ -106,12 +97,11 @@ def train_PPO(env_type, model, memory, optimizer, gamma, lmbda, eps_clip, batch_
         adv_lst.reverse()
         adv = torch.tensor(adv_lst, dtype=torch.float).to(device)
 
-        pi = model.forward_pi(state)
         pi_action = pi.gather(1, action.to(device))
         ratio = torch.exp(torch.log(pi_action) - torch.log(prob_action.to(device))) 
         surr1 = ratio * adv
         surr2 = torch.clamp(ratio, 1 - eps_clip, 1 + eps_clip) * adv
-        loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
+        loss = - torch.min(surr1, surr2) + F.smooth_l1_loss(q, td_target.detach())
         
         optimizer.zero_grad()
         loss.mean().backward()
@@ -161,35 +151,33 @@ class AC(nn.Module):
             self.fc_pi = nn.Linear(256,2).to(self.device)
             self.fc_v = nn.Linear(256,1).to(self.device)
         
-    def forward_pi(self, xb):
+    def forward(self, xb, **kwargs):
         xb = xb.to(self.device)     
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0) 
+        try:
+            if kwargs['pretrain']:
+                xb = torch.unsqueeze(xb, 1)
+        except:
+            if len(xb.shape) == 3:
+                xb = torch.unsqueeze(xb, 0) 
         
         if self.env_type == 'Bioniceye':
             xb = self.cnn_num_block(xb) 
             xb = xb.view(xb.size(0), -1) 
-            xb = self.linear_num_block_pi(xb) 
-        elif self.env_type == 'CartPole-v1':
-            xb = F.relu(self.fc1(xb))
-            xb = self.fc_pi(xb)
-        out = F.softmax(xb, dim=-1) 
-        return out
-    
-    def forward_v(self, xb):
-        xb = xb.to(self.device)
-        if len(xb.shape) == 3:
-            xb = torch.unsqueeze(xb, 0)
+            action_probs = self.linear_num_block_pi(xb) 
+            state_values = self.linear_num_block_v(xb)
 
-        if self.env_type == 'Bioniceye':
-            xb = self.cnn_num_block(xb)
-            xb = xb.view(xb.size(0), -1) 
-            xb = self.linear_num_block_v(xb)
         elif self.env_type == 'CartPole-v1':
             xb = F.relu(self.fc1(xb))
-            xb = self.fc_v(xb)
-        out = xb 
-        return out
+            action_probs = self.fc_pi(xb)
+            state_values = self.fc_v(xb)
+
+        try:
+            if kwargs['pretrain']:
+                action_probs = action_probs
+        except:
+            action_probs = F.softmax(action_probs, dim=-1) 
+
+        return action_probs, state_values
 
 def train_AC(env_type, model, memory, optimizer, gamma, batch_size, device):
     if env_type == 'CartPole-v1':
@@ -200,12 +188,13 @@ def train_AC(env_type, model, memory, optimizer, gamma, batch_size, device):
     for _ in tqdm(trial_range, leave=False):
         state, action, reward, next_state, done_mask = memory.sample(batch_size)
 
-        td_target = reward.to(device) + gamma * model.forward_v(next_state) * done_mask.to(device)
-        delta = td_target.to(device) - model.forward_v(state)
+        pi, q = model(state)
+        _, q_prime = model(next_state)
+        td_target = reward.to(device) + gamma * q_prime * done_mask.to(device)
+        delta = td_target.to(device) - q
 
-        pi = model.forward_pi(state)
         pi_action = pi.gather(1, action.to(device))
-        loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(model.forward_v(state), td_target.detach())
+        loss = - torch.log(pi_action) * delta.detach() + F.smooth_l1_loss(q, td_target.detach())
 
         optimizer.zero_grad()
         loss.mean().backward()
