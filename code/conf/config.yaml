@@ -29,7 +29,6 @@ reinforcement:
     gamma: 0.99
     render: False
     print_interval: 20
-    pre_epoch_num: 7
 
 supervised:
   directory:
