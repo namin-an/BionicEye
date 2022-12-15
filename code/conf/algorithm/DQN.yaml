@@ -5,3 +5,4 @@ episode_num: 1000
 gamma: 0.98
 batch_size: 16
 size_limit: 50000
+pre_epoch_num: 7

@@ -7,3 +7,4 @@ lmbda: 0.95
 eps_clip: 0.1
 batch_size: 16
 size_limit: 720
+pre_epoch_num: 1
