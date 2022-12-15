@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.data import DataLoader, random_split
 import gym
