@@ -52,13 +52,14 @@ def main(cfg: DictConfig):
         batch_size = cfg.environment.batch_size
         render = cfg.reinforcement.training.render
         pretrain_dir = f"{orig_cwd}\{cfg.reinforcement.directory.pretrain_dir}"
-        pre_epoch_num = cfg.reinforcement.training.pre_epoch_num
+        pre_epoch_num = cfg.algorithm.pre_epoch_num
         os.makedirs(f"{cfg.output_dir}")
         checkpoint_file = os.path.join(cfg.output_dir, f'{env_type}_{model_type}.pth')
         correctness_file = os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv')
 
         # Specify algorithm
         if model_type == 'PPO':
+            gamma = cfg.algorithm.gamma
             lmbda = cfg.algorithm.lmbda
             eps_clip = cfg.algorithm.eps_clip
             argv = [lmbda, eps_clip]
@@ -70,8 +71,8 @@ def main(cfg: DictConfig):
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
-            # if env_type == 'Bioniceye':
-            #     exp.pretrain()
+            if env_type == 'Bioniceye':
+                exp.pretrain()
             train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
             print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
