@@ -3,6 +3,10 @@ Project
 
 Run the script depending on your task. Simply type `python main.py` to test the default setting.
 
+Code implementations
+-----
+[seungeunrho/minimalRL] (https://github.com/seungeunrho/minimalRL)   
+
 Device specifications
 -----
 
