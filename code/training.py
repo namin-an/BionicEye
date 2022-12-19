@@ -71,6 +71,12 @@ class ExperimentRL():
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+            
+            if self.model_type == 'PPO' or self.model_type == 'AC':
+                self.model.state_dict()['linear_num_block_v.0.weight'] = self.model.state_dict()['linear_num_block_pi.0.weight']
+                self.model.state_dict()['linear_num_block_v.0.bias'] = self.model.state_dict()['linear_num_block_pi.0.bias']
+                self.model.state_dict()['linear_num_block_v.2.weight'] = torch.mean(self.model.state_dict()['linear_num_block_pi.2.weight'], dim=0)
+                self.model.state_dict()['linear_num_block_v.2.bias'] = torch.mean(self.model.state_dict()['linear_num_block_pi.2.bias'])
 
             print(f"EPOCH: {e} THE LAST LOSS: {loss : .2f}")
 
