@@ -8,7 +8,7 @@ import cv2 as cv
 
 
 class HumanDataLoader():
-    def __init__(self, image_dir, label_path, pred_dir, stim_type, top1):
+    def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, is_test):
 
         self.image_dir = image_dir
         
@@ -23,7 +23,10 @@ class HumanDataLoader():
             self.sel_ppl = [499, 500] + list(range(502, 509)) + list(range(601, 607)) + list(range(608, 611)) # 18 subjects
         random.seed(42)
         test_l = random.sample(self.sel_ppl, len(self.sel_ppl)-1)
-        self.sel_ppl = [per for per in self.sel_ppl if not per in test_l]
+        if is_test:
+            self.sel_ppl = test_l
+        else:
+            self.sel_ppl = [per for per in self.sel_ppl if not per in test_l]
 
         # FOR THE HUMAN PREDICTIONS
         self.preds = []
