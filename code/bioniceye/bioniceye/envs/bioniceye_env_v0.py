@@ -17,9 +17,9 @@ class BionicEyeEnv_v0(Env):
     def __init__(self, image_dir, label_path, pred_dir, stim_type, top1, data_path, class_num):
         super(BionicEyeEnv_v0, self).__init__()
         
-        HumanDataset = HumanDataLoader(image_dir, label_path, pred_dir, stim_type, top1)
-        self.trial_num = len(HumanDataset)
-        trainloader = DataLoader(HumanDataset, batch_size=self.trial_num, num_workers=0, pin_memory=True, shuffle=False)
+        trainHumanDataset = HumanDataLoader(image_dir, label_path, pred_dir, stim_type, top1, is_test=False)
+        self.trial_num = len(trainHumanDataset)
+        trainloader = DataLoader(trainHumanDataset, batch_size=self.trial_num, num_workers=0, pin_memory=True, shuffle=False)
         self.obs, self.label, self.human_pred = next(iter(trainloader))
         
         df = pd.read_csv(data_path)
