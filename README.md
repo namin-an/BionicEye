@@ -2,7 +2,7 @@ Project
 ===============
 
 
-Step-by-step Requirements
+Step-by-step requirements
 -----
 1. Clone the repository
 ```
@@ -10,16 +10,31 @@ git clone https://github.com/namin-an/Project.git
 cd Project
 ```
 
-2. Create the same environment as ours
+2. Create the same environment as ours and install dependencies
 ```
+# For Window users
 conda env create -n python39 --file environment_windows_python39.yaml   
-conda activate python39
+conda activate python39   
+
+# For others
+pip install -r requirements.txt
+```
+
+3. Change the hyperparameter settings in `code/conf/config.yaml` and run the following scripts:
+```
+cd code   
+
+# To train RL models
+python3 ../main.py 
+
+# To train SL models
+python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
 ```
 
 
 Code implementations
 -----
-[seungeunrho/minimalRL] (https://github.com/seungeunrho/minimalRL)   
+RL algorithm codes are adapted from [seungeunrho/minimalRL](https://github.com/seungeunrho/minimalRL)   
 
 
 Device specifications
@@ -46,7 +61,7 @@ If you want to report the results of our method or implement the framework, plea
   title     = {Reinforcement Learning-Based Feedback Framework to Simulate Human Psychophysical Experiment of Prosthetic Vision},
   year      = {2023},
   volume    = {?},
-  pages     = {1-7},
+  pages     = {1-8},
   doi       = {?}
 }
 ```
