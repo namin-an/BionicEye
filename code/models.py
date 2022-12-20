@@ -148,8 +148,8 @@ class AC(nn.Module):
 
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4,256).to(self.device)
-            self.fc_pi = nn.Linear(256,2).to(self.device)
-            self.fc_v = nn.Linear(256,1).to(self.device)
+            self.fc_pi = Linear(256,2).to(self.device)
+            self.fc_v = Linear(256,1).to(self.device)
         
     def forward(self, xb, **kwargs):
         xb = xb.to(self.device)     
@@ -234,8 +234,8 @@ class DQN(nn.Module):
             
         elif self.env_type == 'CartPole-v1':
             self.fc1   = Linear(4, 128).to(self.device)
-            self.fc2 = nn.Linear(128, 128).to(self.device)
-            self.fc3 = nn.Linear(128, 2).to(self.device)
+            self.fc2 = Linear(128, 128).to(self.device)
+            self.fc3 = Linear(128, 2).to(self.device)
         
     def forward(self, xb, **kwargs):
         xb = xb.to(self.device)
@@ -277,7 +277,9 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
 
         q_out = model(state)
         q_a = q_out.gather(1, action.to(device))
-        max_q_prime = model_target(next_state).max(1)[0].unsqueeze(1)
+        # max_q_prime = model_target(next_state).max(1)[0].unsqueeze(1) # DQN
+        _, est_a = model(next_state).max(1, keepdim=True) # Double Q-learning
+        max_q_prime = model_target(next_state).gather(1, est_a) # Double Q-learning
         target = reward.to(device) + gamma * max_q_prime * done_mask.to(device)
         loss = F.smooth_l1_loss(q_a, target)
 
