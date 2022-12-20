@@ -16,6 +16,10 @@ cd Project
 conda env create -n python39 --file environment_windows_python39.yaml   
 conda activate python39   
 
+# For Mac users
+conda env create -n namina --file environment_mac_namina.yaml   
+conda activate namina
+
 # For others
 pip install -r requirements.txt
 ```
