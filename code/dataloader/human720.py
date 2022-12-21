@@ -22,7 +22,7 @@ class HumanDataLoader():
         elif stim_type == 'elec':
             self.sel_ppl = [499, 500] + list(range(502, 509)) + list(range(601, 607)) + list(range(608, 611)) # 18 subjects
         random.seed(42)
-        test_l = random.sample(self.sel_ppl, len(self.sel_ppl)-1)
+        test_l = random.sample(self.sel_ppl, len(self.sel_ppl)//2)
         if is_test:
             self.sel_ppl = test_l
         else:
