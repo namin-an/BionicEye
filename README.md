@@ -4,6 +4,7 @@ Project
 
 Step-by-step requirements
 -----
+
 1. Clone the repository
 ```
 git clone https://github.com/namin-an/Project.git   
@@ -11,27 +12,40 @@ cd Project
 ```
 
 2. Create the same environment as ours and install dependencies
+- For Window users
 ```
-# For Window users
-conda env create -n python39 --file environment_windows_python39.yaml   
-conda activate python39   
-
-# For Mac users
-conda env create -n namina --file environment_mac_namina.yaml   
-conda activate namina
-
-# For others
+conda env create -n bioniceye --file environment_windows_python39.yaml   
+conda activate bioniceye
+```
+- For Mac users
+```
+conda env create -n bioniceye --file environment_mac_namina.yaml   
+conda activate bioniceye
+```
+- For any users
+```
+conda create -n bioniceye python=3.9
+conda activate bioniceye
 pip install -r requirements.txt
 ```
 
-3. Change the hyperparameter settings in `code/conf/config.yaml` and run the following scripts:
+3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess it using the following files:
+```
+```
+
+4. Place the original high-resolution data in `data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `data\sample_for_dev_test`. All the other human experiment data can be found in `data` folder.
+
+
+5. Change the hyperparameter settings in `code/conf/config.yaml` and run the following scripts:
 ```
 cd code   
-
-# To train RL models
+```
+- To train RL models
+```
 python3 ../main.py 
-
-# To train SL models
+```
+- To train SL models
+```
 python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
 ```
 
