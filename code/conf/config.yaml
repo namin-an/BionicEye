@@ -1,6 +1,6 @@
 defaults:
   - environment: Bioniceye # Bioniceye or CartPole-v1
-  - algorithm: PPO # PPO or AC or DQN
+  - algorithm: DQN # PPO or AC or DQN
 
 server:
   ip: "127.0.0.1"
