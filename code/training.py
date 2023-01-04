@@ -14,10 +14,12 @@ from utils.early_stop import EarlyStopping
 
 
 class ExperimentRL():
-    def __init__(self, image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, *argv):
+    def __init__(self, image_dir, label_path, pred_dir, output_dir, checkpoint_file, correctness_file, train_returns_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, *argv):
 
+        self.output_dir = output_dir
         self.checkpoint_file = checkpoint_file
         self.correctness_file = correctness_file
+        self.train_returns_file = train_returns_file
         self.env_type = env_type
         self.model_type = model_type
         self.episode_num = episode_num
@@ -151,13 +153,18 @@ class ExperimentRL():
                 if e == 0:
                     best_model = self.model
                     best_correctness = sum(correctness[0]) / len(correctness[0])
+                    torch.save(best_model.state_dict(), self.checkpoint_file.split('.')[0] + f'{e}.pth')
                 else:
                     if (sum(correctness[e]) / len(correctness[e])) > best_correctness:
                         best_model = self.model
-                        torch.save(best_model.state_dict(), self.checkpoint_file)
+                        if e % 10 == 0:
+                            torch.save(best_model.state_dict(), self.checkpoint_file.split('.')[0] + f'{e}.pth') # self.checkpoint_file
                         best_correctness = sum(train_returns[e]) / len(correctness[e])
                         correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
                         correctness_df.to_csv(self.correctness_file, mode='w+')
+
+                        train_returns_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in train_returns.items()]))
+                        train_returns_df.to_csv(self.train_returns_file, mode='w+')
 
             # Train with collected transitions
             if self.buffer.size() > 128:
