@@ -56,6 +56,7 @@ def main(cfg: DictConfig):
         os.makedirs(f"{cfg.output_dir}")
         checkpoint_file = os.path.join(cfg.output_dir, f'{env_type}_{model_type}.pth')
         correctness_file = os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv')
+        train_returns_file = os.path.join(cfg.output_dir, f'TrainReturns_{env_type}_{model_type}.csv')
 
         # Specify algorithm
         if model_type == 'PPO':
@@ -67,12 +68,12 @@ def main(cfg: DictConfig):
             argv = []
 
         # Perform experiment
-        exp = ExperimentRL(image_dir, label_path, pred_dir, checkpoint_file, correctness_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, argv)
+        exp = ExperimentRL(image_dir, label_path, pred_dir, cfg.output_dir, checkpoint_file, correctness_file, train_returns_file, stim_type, top1, data_path, class_num, env_type, model_type, episode_num, size_limit, print_interval, learning_rate, gamma, batch_size, render, pretrain_dir, pre_epoch_num, device, argv)
         if cfg.monitor_tm:
             start_time = time.time()
             tracemalloc.start()
-            if env_type == 'Bioniceye':
-                exp.pretrain()
+            # if env_type == 'Bioniceye':
+            #     exp.pretrain()
             train_returns, correctness = exp.train()
             memory = tracemalloc.get_traced_memory()
             print(f"Total training time: {time.time() - start_time : .2f} (seconds) or  {(time.time() - start_time) / 3600 : .2f} (hours)")
@@ -84,9 +85,9 @@ def main(cfg: DictConfig):
         # Save the final information
         if cfg.save_info:
             train_returns_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in train_returns.items()]))
-            train_returns_df.to_csv(os.path.join(cfg.output_dir, f'TrainReturns_{env_type}_{model_type}.csv'))
+            train_returns_df.to_csv(correctness_file)
             correctness_df = pd.DataFrame.from_dict(dict([(k, pd.Series(v, dtype='float64')) for k, v in correctness.items()]))
-            correctness_df.to_csv(os.path.join(cfg.output_dir, f'Correctness_{env_type}_{model_type}.csv'))
+            correctness_df.to_csv(train_returns_file)
 
     if cfg.train == 'SL':
         # Define local variables
