@@ -277,9 +277,9 @@ def train_DQN(env_type, model, model_target, memory, optimizer, gamma, batch_siz
 
         q_out = model(state)
         q_a = q_out.gather(1, action.to(device))
-        # max_q_prime = model_target(next_state).max(1)[0].unsqueeze(1) # DQN
-        _, est_a = model(next_state).max(1, keepdim=True) # Double Q-learning
-        max_q_prime = model_target(next_state).gather(1, est_a) # Double Q-learning
+        max_q_prime = model_target(next_state).max(1)[0].unsqueeze(1) # DQN
+        # _, est_a = model(next_state).max(1, keepdim=True) # Double Q-learning
+        # max_q_prime = model_target(next_state).gather(1, est_a) # Double Q-learning
         target = reward.to(device) + gamma * max_q_prime * done_mask.to(device)
         loss = F.smooth_l1_loss(q_a, target)
 
