@@ -4,6 +4,9 @@ outputs/
 multirun/
 figures/
 
+code/data/
+*.csv
+
 temp.*
 Reinforcement_Learning.*
 
