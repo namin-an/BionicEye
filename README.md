@@ -29,8 +29,11 @@ conda activate bioniceye
 pip install -r requirements.txt
 ```
 
-3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess it using the following files:
+3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them using the below jupyter notebook:
 ```
+selectTrainableImgs.ipynb # Select 4,972 images that are trainable 
+processBeforeDownsamp.ipynb # Crop the images into squares, remove noisy backgrounds, and enhance the contrast of the images 
+downsampling.ipynb # Make low-resolution phosphene images 
 ```
 
 4. Place the original high-resolution data in `data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `data/sample_for_dev_test`. All the other human experiment data can be found in `data` folder.
@@ -52,7 +55,9 @@ python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1
 
 Code implementations
 -----
-RL algorithm codes are adapted from [seungeunrho/minimalRL](https://github.com/seungeunrho/minimalRL)   
+Image processing codes are from [namin-an/ArtificialVision](https://github.com/namin-an/ArtificialVision)
+Reinforcement learning algorithm codes are adapted from [seungeunrho/minimalRL](https://github.com/seungeunrho/minimalRL)   
+
 
 
 Device specifications
