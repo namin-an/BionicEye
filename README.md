@@ -29,11 +29,13 @@ conda activate bioniceye
 pip install -r requirements.txt
 ```
 
-3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them using the below jupyter notebook:
+3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them using the below jupyter notebooks:   
 ```
-selectTrainableImgs.ipynb # Select 4,972 images/facial class that are trainable.   
-processBeforeDownsamp.ipynb # Crop the images into squares, remove noisy backgrounds, and enhance the contrast of the images. 
-downsampling.ipynb # Make low-resolution phosphene images. 
+unzipAIHubData.py # Unzip all the original files.
+selCropTrainableImgs.ipynb # Select 4,972 images that are trainable and crop them into the dimension of 128 x 128.   
+mask.ipynb # Make the masks for K-Face datasets using the U-Net pretrained on [CelebA-HQ dataset](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html).
+remBackEnhCont.ipynb # Remove noisy backgrounds and enhance the contrast of the images.   
+downsampling*.ipynb # Make low-resolution phosphene images.
 ```
 
 4. Place the original high-resolution data in `data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `data/sample_for_dev_test`. All the other human experiment data can be found in `data` folder.
