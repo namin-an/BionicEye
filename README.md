@@ -12,17 +12,6 @@ cd Project
 ```
 
 2. Create the same environment as ours and install dependencies
-- For Window users
-```
-conda env create -n bioniceye --file environment_windows_python39.yaml   
-conda activate bioniceye
-```
-- For Mac users
-```
-conda env create -n bioniceye --file environment_mac_namina.yaml   
-conda activate bioniceye
-```
-- For any users
 ```
 conda create -n bioniceye python=3.9
 conda activate bioniceye
@@ -40,15 +29,16 @@ pip install -r requirements.txt
 cd code   
 ```
 
-- To train RL models
-```
-python3 ../main.py 
-```
+    - To train RL models
+    ```
+    python3 ../main.py 
+    ```
 
-- To train SL models
-```
-python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
-```
+    - To train SL models
+    ```
+    python ../main.py -m         
+    supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
+    ```
 
 
 Code implementations
