@@ -29,14 +29,8 @@ conda activate bioniceye
 pip install -r requirements.txt
 ```
 
-3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them using the below jupyter notebooks:   
-```
-unzipAIHubData.py # Unzip all the original files.
-selCropTrainableImgs.ipynb # Select 4,972 images that are trainable and crop them into the dimension of 128 x 128.   
-mask.ipynb # Make the masks for K-Face datasets using the U-Net pretrained on [CelebA-HQ dataset](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html).
-remBackEnhCont.ipynb # Remove noisy backgrounds and enhance the contrast of the images.   
-downsampling*.ipynb # Make low-resolution phosphene images.
-```
+3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them by following the step 3 of the usage 3 from [namin-an/ArtificialVision](https://github.com/namin-an/ArtificialVision).  
+
 
 4. Place the original high-resolution data in `data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `data/sample_for_dev_test`. All the other human experiment data can be found in `data` folder.
 
@@ -45,10 +39,12 @@ downsampling*.ipynb # Make low-resolution phosphene images.
 ```
 cd code   
 ```
+
 - To train RL models
 ```
 python3 ../main.py 
 ```
+
 - To train SL models
 ```
 python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
@@ -57,7 +53,6 @@ python ../main.py -m supervised.training.train_num=128,256,384,512,640,768,896,1
 
 Code implementations
 -----
-Image processing codes are from [namin-an/ArtificialVision](https://github.com/namin-an/ArtificialVision)   
 Reinforcement learning algorithm codes are adapted from [seungeunrho/minimalRL](https://github.com/seungeunrho/minimalRL)   
 
 
@@ -65,14 +60,10 @@ Reinforcement learning algorithm codes are adapted from [seungeunrho/minimalRL](
 Device specifications
 -----
 
-`Processor` Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-
-`Operating system` Windows 10 Pro 64 bit
-
-`Memory` 16.0GB
-
-`SSD` Samsung SSD 970 EVO Plus 500GB
-
+`Processor` Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz   
+`Operating system` Windows 10 Pro 64 bit   
+`Memory` 16.0GB   
+`SSD` Samsung SSD 970 EVO Plus 500GB   
 `Graphics` NVIDIA GeForce RTX 3070   
 
 
