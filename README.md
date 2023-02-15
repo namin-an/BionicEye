@@ -25,17 +25,16 @@ pip install -r requirements.txt
 
 
 5. Change the hyperparameter settings in `code/conf/config.yaml` and run the following scripts:
-```
-cd code   
-```
 
     - To train RL models
     ```
+    cd code
     python3 ../main.py 
     ```
 
     - To train SL models
     ```
+    cd code
     python ../main.py -m         
     supervised.training.train_num=128,256,384,512,640,768,896,1024,1152,1280,1408,1536,166
     ```
