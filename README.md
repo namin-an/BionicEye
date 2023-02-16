@@ -21,7 +21,7 @@ pip install -r requirements.txt
 3. Download K-Face data from [AI Hub](https://www.aihub.or.kr/) and preprocess them by following the step 3 of the usage 3 from [namin-an/ArtificialVision](https://github.com/namin-an/ArtificialVision).  
 
 
-4. Place the original high-resolution data in `data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `data/sample_for_dev_test`. All the other human experiment data can be found in `data` folder.
+4. Place the original high-resolution data in `code/data/Middle_Resolution_137_unzipped_parcropped_128_removed_train` and low-resolution phosphene data in `code/data/sample_for_dev_test`. All the other human experiment data can be found in `code/data` folder.
 
 
 5. Change the hyperparameter settings in `code/conf/config.yaml` and run the following scripts:
